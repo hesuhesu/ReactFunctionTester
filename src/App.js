@@ -1,8 +1,13 @@
 import ColorPicker from "./components/ColorPicker";
+import Three from "./components/Three";
 
 function App() {
   return (
-    <ColorPicker></ColorPicker>
+    <div>
+      <ColorPicker></ColorPicker>
+      <Three></Three>
+    </div>
+    
   );
 }
 
