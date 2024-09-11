@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
@@ -12,12 +12,31 @@ const Three = () => {
     dracoLoader.setDecoderConfig({ type: 'js' });
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setDRACOLoader(dracoLoader);
-    loader.load('/BarramundiFish.glb', (gltf) => {
-        
+    loader.load('/korrigan wolf.gltf', (gltf) => {
         if (gltf.scene) {
           const scene = gltf.scene;
           scene.scale.set(0.5, 0.5, 0.5);
           scene.position.set(0, 0, 0);
+
+          // 동적으로 div 요소 생성
+          const meshInfoDiv = document.createElement('div');
+          meshInfoDiv.style.position = 'absolute';
+          meshInfoDiv.style.top = '10px';
+          meshInfoDiv.style.left = '1100px'; // canvas 오른쪽에 위치
+          meshInfoDiv.style.color = 'white';
+          meshInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+          meshInfoDiv.style.padding = '10px';
+          document.body.appendChild(meshInfoDiv);
+
+          const meshes = [];
+          scene.traverse((child) => {
+              if (child.isMesh) {
+                  meshes.push(child.name); // 매쉬의 이름을 추가
+              }
+          });
+
+          // 매쉬 정보를 div에 출력
+          meshInfoDiv.innerHTML = `${meshes.join('<br>')}`;
 
           // 모델의 bounding box 계산
           const box = new THREE.Box3().setFromObject(scene);
@@ -68,28 +87,6 @@ const Three = () => {
             autoRotate = !autoRotate; // 자동 회전 상태 전환
           });
 
-          /* 수정할 부분
-          const raycaster = new THREE.Raycaster();
-          const pointer = new THREE.Vector2();
-
-          function onPointerMove( event ) {
-            // calculate pointer position in normalized device coordinates
-            // (-1 to +1) for both components
-            pointer.x = ( event.clientX / window.innerWidth ) * 2 - 1;
-            pointer.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
-          }
-          // update the picking ray with the camera and pointer position
-          raycaster.setFromCamera( pointer, camera );
-
-          // calculate objects intersecting the picking ray
-          const intersects = raycaster.intersectObjects( scene.children );
-
-          for ( let i = 0; i < intersects.length; i ++ ) {
-            intersects[ i ].object.material.color.set( 0x00ffff );
-          }
-          window.addEventListener( 'pointermove', onPointerMove );
-          */
-
           const clock = new THREE.Clock();
           const animate = () => {
             requestAnimationFrame(animate);
@@ -107,6 +104,7 @@ const Three = () => {
           // 메모리 누수를 방지하기 위한 cleanup
           return () => {
             renderer.dispose();
+            document.body.removeChild(meshInfoDiv); // 동적으로 생성한 div 제거
             document.body.removeChild(renderer.domElement);
           };
         } else { console.error('Failed to load GLTF file: scene is undefined'); }},
@@ -116,7 +114,6 @@ const Three = () => {
         <div>
             <canvas ref={canvasRef}></canvas>
         </div>
-        
     )
 }
 
