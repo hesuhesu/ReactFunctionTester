@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 
 const Three = () => {
     const canvasRef = useRef();
@@ -24,19 +25,72 @@ const Three = () => {
           meshInfoDiv.style.top = '10px';
           meshInfoDiv.style.left = '1100px'; // canvas 오른쪽에 위치
           meshInfoDiv.style.color = 'white';
-          meshInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+          meshInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 1)';
           meshInfoDiv.style.padding = '10px';
           document.body.appendChild(meshInfoDiv);
 
           const meshes = [];
           scene.traverse((child) => {
               if (child.isMesh) {
-                  meshes.push(child.name); // 매쉬의 이름을 추가
+                  meshes.push(child);
+                  
+                  // 메쉬 이름 추가
+                  const meshName = document.createElement('div');
+                  meshName.innerText = child.name;
+
+                  // 색상 선택기 추가
+                  const colorInput = document.createElement('input');
+                  colorInput.type = 'color';
+                  colorInput.value = '#ffffff'; // 기본 색상 흰색
+
+                  // 색상 변경 이벤트 추가
+                  colorInput.addEventListener('input', (event) => {
+                      const color = new THREE.Color(event.target.value);
+                      child.material.color.set(color);
+                  });
+
+                  // 크기 조절 입력 필드 추가
+                  const sizeInput = document.createElement('input');
+                  sizeInput.type = 'number';
+                  sizeInput.value = child.scale.x; // 기본 크기
+                  sizeInput.min = 0.1; // 최소 크기
+                  sizeInput.step = 0.1; // 증가 단위
+
+                  // 크기 변경 이벤트 추가
+                  sizeInput.addEventListener('input', (event) => {
+                      const newSize = parseFloat(event.target.value);
+                      child.scale.set(newSize, newSize, newSize);
+                  });
+
+                  meshInfoDiv.appendChild(meshName);
+                  meshInfoDiv.appendChild(colorInput);
+                  meshInfoDiv.appendChild(sizeInput);
               }
           });
 
-          // 매쉬 정보를 div에 출력
-          meshInfoDiv.innerHTML = `${meshes.join('<br>')}`;
+          // 저장하기 버튼 추가
+          const saveButton = document.createElement('button');
+          saveButton.innerText = '저장하기';
+          saveButton.style.marginTop = '10px';
+          meshInfoDiv.appendChild(saveButton);
+          
+          // 저장 버튼 클릭 이벤트
+          saveButton.addEventListener('click', () => {
+              const exporter = new GLTFExporter();
+              exporter.parse(
+                scene,
+                function (result) {
+                  const blob = new Blob([JSON.stringify(result)], { type: 'application/json' });
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = 'modified_model.gltf';
+                  link.click();
+                },
+                function (error) {
+                  console.error('An error occurred during parsing', error);
+                }
+              );
+          });
 
           // 모델의 bounding box 계산
           const box = new THREE.Box3().setFromObject(scene);
