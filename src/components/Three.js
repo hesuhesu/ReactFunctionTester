@@ -13,7 +13,7 @@ const Three = () => {
     dracoLoader.setDecoderConfig({ type: 'js' });
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setDRACOLoader(dracoLoader);
-    loader.load('/korrigan wolf.gltf', (gltf) => {
+    loader.load('/BarramundiFish.glb', (gltf) => {
         if (gltf.scene) {
           const scene = gltf.scene;
           scene.scale.set(0.5, 0.5, 0.5);
@@ -27,6 +27,9 @@ const Three = () => {
           meshInfoDiv.style.color = 'white';
           meshInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 1)';
           meshInfoDiv.style.padding = '10px';
+          meshInfoDiv.style.maxHeight = '300px'; // 최대 높이 설정
+          meshInfoDiv.style.overflowY = 'auto'; // 세로 스크롤 추가
+          meshInfoDiv.style.overflowX = 'hidden'; // 가로 스크롤 숨김
           document.body.appendChild(meshInfoDiv);
 
           const meshes = [];
@@ -76,6 +79,8 @@ const Three = () => {
           
           // 저장 버튼 클릭 이벤트
           saveButton.addEventListener('click', () => {
+            scene.remove(axesHelper);
+            scene.remove(gridHelper);
               const exporter = new GLTFExporter();
               exporter.parse(
                 scene,
@@ -85,9 +90,13 @@ const Three = () => {
                   link.href = URL.createObjectURL(blob);
                   link.download = 'modified_model.gltf';
                   link.click();
+                  scene.add(axesHelper);
+                  scene.add(gridHelper);
                 },
                 function (error) {
                   console.error('An error occurred during parsing', error);
+                  scene.add(axesHelper);
+                  scene.add(gridHelper);
                 }
               );
           });
@@ -110,7 +119,10 @@ const Three = () => {
           });
           renderer.setSize(1000, 1000);
           renderer.setClearColor(0xffffff, 1);
-
+  
+          const controls = new OrbitControls(camera, renderer.domElement);
+          // controls.enableDamping = true;
+  
           // 축 선 그리기
           const axesHelper = new THREE.AxesHelper(50);
           scene.add(axesHelper);
@@ -118,10 +130,7 @@ const Three = () => {
           // 그리드 그리기
           const gridHelper = new THREE.GridHelper(100,100);
           scene.add(gridHelper);
-  
-          const controls = new OrbitControls(camera, renderer.domElement);
-          // controls.enableDamping = true;
-  
+          
           const ambientLight = new THREE.AmbientLight(0xffffff, 1);
           scene.add(ambientLight);
   
