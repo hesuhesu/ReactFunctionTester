@@ -12,14 +12,6 @@ import FormControl from '@mui/material/FormControl';
 import Select from '@mui/material/Select';
 import Alert from '@mui/material/Alert';
 
-// npm install 해야함
-
-// 설치한 모듈
-// npm install react react-dom
-// npm install three
-// npm install web-vitals
-// npm install @mui/material @emotion/react @emotion/styled
-
 const defaultCode = `
 // 정점 정의하기
 const vertices = [
@@ -51,35 +43,6 @@ const is3D = true;
 
 drawShape(vertices, indices, color, is3D);
 `;
-
-/*
-
-2D 사각형 그리는 코드(윕에서)
-// 정점 정의하기
-const vertices = [
-    200.0,  200.0,  0.0,  // Vertex 1
-   -200.0,  200.0,  0.0,  // Vertex 2
-    200.0, -200.0,  0.0,  // Vertex 3
-   -200.0, -200.0,  0.0,  // Vertex 4
- 
- ];
- 
- // 각 면을 구성하는 삼각형 index 정의
- const indices = [
-   0, 1, 2, // First triangle
-   1, 3, 2  // Second triangle
- 
- ];
- 
- // 도형 색깔 정의
- const color = 0xff0000; // Red
- 
- // 2D or 3D 결정
- const is3D = false;
- 
- drawShape(vertices, indices, color, is3D);
- 
-*/
 
 const WebEditor = () => {
   const mountRef = useRef(null);  // DOM 참조를 위한 useRef hook 사용
