@@ -4,6 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import "../css/Three.css";
 
 const Three = () => {
     const canvasRef = useRef();
@@ -20,18 +21,8 @@ const Three = () => {
           scene.position.set(0, 0, 0);
 
           // 동적으로 div 요소 생성
-          const meshInfoDiv = document.createElement('div');
-          meshInfoDiv.style.position = 'absolute';
-          meshInfoDiv.style.top = '10px';
-          meshInfoDiv.style.left = '1100px'; // canvas 오른쪽에 위치
-          meshInfoDiv.style.color = 'white';
-          meshInfoDiv.style.backgroundColor = 'rgba(0, 0, 0, 1)';
-          meshInfoDiv.style.padding = '10px';
-          meshInfoDiv.style.maxHeight = '300px'; // 최대 높이 설정
-          meshInfoDiv.style.overflowY = 'auto'; // 세로 스크롤 추가
-          meshInfoDiv.style.overflowX = 'hidden'; // 가로 스크롤 숨김
-          document.body.appendChild(meshInfoDiv);
-
+          const meshInfoDiv = document.getElementById('information');
+          
           const meshes = [];
           scene.traverse((child) => {
               if (child.isMesh) {
@@ -167,7 +158,6 @@ const Three = () => {
           // 메모리 누수를 방지하기 위한 cleanup
           return () => {
             renderer.dispose();
-            document.body.removeChild(meshInfoDiv); // 동적으로 생성한 div 제거
             document.body.removeChild(renderer.domElement);
           };
         } else { console.error('Failed to load GLTF file: scene is undefined'); }},
@@ -176,6 +166,7 @@ const Three = () => {
     return (
         <div>
             <canvas ref={canvasRef}></canvas>
+            <div id="information"></div>
         </div>
     )
 }
