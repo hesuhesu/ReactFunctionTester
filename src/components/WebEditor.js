@@ -50,6 +50,7 @@ const WebEditor = () => {
   const sceneRef = useRef(null);  // 씬 객체를 참조하기 위한 useRef hook 사용
   const [fileFormat, setFileFormat] = React.useState('gltf'); // 기본 파일 포맷 gltf 설정
   const [alertMessage, setAlertMessage] = useState(''); // 경고 메시지를 위한 상태 추가
+  const [true1, setTrue1] = useState(false);
 
   // 코드 실행 함수
   const handleRunCode = () => {
@@ -154,6 +155,10 @@ const WebEditor = () => {
     link.click();
   };
 
+  const handleTrue = () => {
+    setTrue1(!true1);
+  }
+
   // 컴포넌트가 마운트될 때 캔버스 크기 설정
   useEffect(() => {
     const canvas = mountRef.current;
@@ -164,7 +169,9 @@ const WebEditor = () => {
   }, []);
 
   return (
-    <div style={{ backgroundColor: '#F9F9F9', height: '100vh' }}>
+    <>
+    <button onClick={handleTrue}>Web Editor</button>
+    {true1 && <div style={{ backgroundColor: '#F9F9F9', height: '100vh' }}>
       <Container style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
         {/* 코드 입력 영역 */}
         <textarea
@@ -200,7 +207,9 @@ const WebEditor = () => {
         {/* 3D 렌더링 출력 영역 */}
         <div id="threejs-output" ref={mountRef} style={{ flex: 1, height: '100%', marginTop: '10px' }} />
       </Container>
-    </div>
+    </div>}
+    </>
+    
   );
 };
 
