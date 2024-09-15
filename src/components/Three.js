@@ -16,21 +16,22 @@ const Three = () => {
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
     loader.setDRACOLoader(dracoLoader);
     
-    loader.load('/korrigan wolf.gltf', (gltf) => {
+    loader.load('/bike.gltf', (gltf) => {
       if (gltf.scene) {
+        dracoLoader.dispose(); // 메모리 누수 방지
         const scene = gltf.scene;
-        scene.scale.set(0.5, 0.5, 0.5);
-        scene.position.set(0, 0, 0);
         
+        // 애니메이션 믹서 추가
+          const mixer = new THREE.AnimationMixer(scene);
+          gltf.animations.forEach((clip) => {
+              mixer.clipAction(clip).play(); // 모든 애니메이션 클립 재생
+          });
         // 동적으로 div 요소 생성
         const meshInfoDiv = document.getElementById('information');
         const meshes = [];
 
-        // 기존 요소 제거
-        if (meshInfoDiv.innerHTML !== ''){
-          meshInfoDiv.innerHTML = '';
-        }
-
+        meshInfoDiv.innerHTML = '';
+        
         scene.traverse((child) => {
             if (child.isMesh) {
                 meshes.push(child);
@@ -77,38 +78,43 @@ const Three = () => {
 
         // 저장 버튼 클릭 이벤트
         saveButton.addEventListener('click', () => {
-            scene.remove(axesHelper);
-            scene.remove(gridHelper);
-            const exporter = new GLTFExporter();
-            exporter.parse(
-                scene,
-                function (result) {
-                    const blob = new Blob([JSON.stringify(result)], { type: 'application/json' });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = 'modified_model.gltf';
-                    link.click();
-                    scene.add(axesHelper);
-                    scene.add(gridHelper);
-                },
-                function (error) {
-                    console.error('An error occurred during parsing', error);
-                    scene.add(axesHelper);
-                    scene.add(gridHelper);
-                }
-            );
-        });
+          const helpers = [axesHelper, gridHelper];
+          helpers.forEach(helper => helper.visible = false); // 도우미들 숨기기
+      
+          // 애니메이션 클립이 있는 경우 애니메이션 데이터를 포함하여 GLTF로 저장
+          const options = {
+            binary: false,   // JSON 형태로 저장, binary: true로 하면 GLB 형태로 저장
+            animations: gltf.animations  // 애니메이션을 포함하여 저장
+          };
+          const exporter = new GLTFExporter();
+          exporter.parse(
+              scene,
+              (result) => {
+                  const blob = new Blob([JSON.stringify(result)], { type: 'application/json' });
+                  const link = document.createElement('a');
+                  link.href = URL.createObjectURL(blob);
+                  link.download = 'model.gltf';
+                  link.click();
+              },
+              (error) => console.error('GLTF 파일 저장 중 오류가 발생했습니다:', error),
+              options  // 애니메이션을 포함한 옵션을 전달
+          );
+          helpers.forEach(helper => helper.visible = true); // 도우미들 다시 보이기
+      });
 
           const allRemoveBtn = document.getElementById("ThreeD-Delete");
           allRemoveBtn.addEventListener('click', function () {
-            meshInfoDiv.replaceChildren();
-            setTrue1(!true1);
+            setTrue1(false); // Reset state to hide 3D view
+            scene.traverse((object) => {
+                if (!object.isMesh) return;
+                object.geometry.dispose();
+                if (object.material.isMaterial) {
+                    object.material.dispose();
+                }
+            });
             renderer.dispose();
             controls.dispose();
-            gridHelper.dispose();
-            axesHelper.dispose();
-            ambientLight.dispose();
-            directionalLight.dispose();
+            scene.clear();
           });
 
           // 모델의 bounding box 계산
@@ -148,13 +154,9 @@ const Three = () => {
           directionalLight.position.set(0, 1, 0);
           scene.add(directionalLight);
 
-          // 애니메이션 믹서 추가
-          const mixer = new THREE.AnimationMixer(scene);
-          gltf.animations.forEach((clip) => {
-              mixer.clipAction(clip).play(); // 모든 애니메이션 클립 재생
-          });
+          
 
-          // 두 번 클릭 이벤트 추가
+          // 모델 두 번 클릭 이벤트 추가
           let autoRotate = false; // 자동 회전 상태 변수
           renderer.domElement.addEventListener('dblclick', () => {
             autoRotate = !autoRotate; // 자동 회전 상태 전환
@@ -180,13 +182,16 @@ const Three = () => {
     const handleTrue = () => {
       setTrue1(!true1);
     }
+
     return (
         <div>
-          {true1 ? <>
-            <canvas ref={canvasRef}></canvas>
-            <div id = "information">매쉬 정보</div>
+          {true1 ? <div className="ThreeD-div">
             <button id = "ThreeD-Delete">3D Upload 삭제</button>
-          </> : <button onClick={handleTrue}>3D Upload 시작</button>}
+            <div className="canvas-container">
+              <canvas ref={canvasRef}></canvas>
+              <div id="information">Loading...</div>
+          </div>
+          </div> : <button onClick={handleTrue}>3D Upload 시작</button>}
         </div>
     )
 }
