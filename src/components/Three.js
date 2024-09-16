@@ -29,9 +29,7 @@ const Three = () => {
         // 동적으로 div 요소 생성
         const meshInfoDiv = document.getElementById('information');
         const meshes = [];
-
         meshInfoDiv.innerHTML = '';
-        
         scene.traverse((child) => {
             if (child.isMesh) {
                 meshes.push(child);
@@ -72,7 +70,8 @@ const Three = () => {
 
         // 저장하기 버튼 추가
         const saveButton = document.createElement('button');
-        saveButton.innerText = '저장하기';
+        saveButton.type = 'button';
+        saveButton.innerText = '파일 즉시 저장하기';
         saveButton.style.marginTop = '10px';
         meshInfoDiv.appendChild(saveButton);
 
@@ -81,6 +80,15 @@ const Three = () => {
           const helpers = [axesHelper, gridHelper];
           helpers.forEach(helper => helper.visible = false); // 도우미들 숨기기
       
+          // Check for sizeInput values of 0
+          const sizeInputs = document.querySelectorAll('input[type="number"]');
+          const hasZeroSize = Array.from(sizeInputs).some(input => parseFloat(input.value) === 0);
+
+          if (hasZeroSize) {
+            alert("크기가 0 인 요소가 있음!");
+            helpers.forEach(helper => helper.visible = true); // 도우미들 다시 보이기
+            return; // 저장하지 않고 종료
+          }
           // 애니메이션 클립이 있는 경우 애니메이션 데이터를 포함하여 GLTF로 저장
           const options = {
             binary: false,   // JSON 형태로 저장, binary: true로 하면 GLB 형태로 저장
@@ -133,7 +141,7 @@ const Three = () => {
             alpha: false,
             preserveDrawingBuffer: true,
           });
-          renderer.setSize(1000, 1000);
+          renderer.setSize(window.innerWidth, window.innerHeight);
           renderer.setClearColor(0xffffff, 1);
   
           const controls = new OrbitControls(camera, renderer.domElement);
