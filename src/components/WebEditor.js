@@ -122,7 +122,7 @@ const WebEditor = () => {
     // const format = document.getElementById('file-format').value;
     const filename = document.getElementById('file-name').value;
 
-    if (!filename){
+    if (!filename) {
       setAlertMessage("파일명을 입력해 주세요.");
       return;
     }
@@ -170,19 +170,19 @@ const WebEditor = () => {
 
   return (
     <>
-    <button onClick={handleTrue}>Web Editor</button>
-    {true1 && <div style={{ backgroundColor: '#F9F9F9', height: '100vh' }}>
-      <Container style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-        {/* 코드 입력 영역 */}
-        <textarea
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          style={{ flex: 1, fontFamily: 'monospace', fontSize: '16px', resize: 'none', marginTop: '10px' }}
-        />
-        <Button variant="contained" onClick={handleRunCode} style={{ padding: '10px' }}>Run Code</Button>
-        <Grid container>
+      <button onClick={handleTrue}>Web Editor</button>
+      {true1 && <div style={{ backgroundColor: '#F9F9F9', height: '100vh' }}>
+        <Container style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+          {/* 코드 입력 영역 */}
+          <textarea
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            style={{ flex: 1, fontFamily: 'monospace', fontSize: '16px', resize: 'none', marginTop: '10px' }}
+          />
+          <Button variant="contained" onClick={handleRunCode} style={{ padding: '10px' }}>Run Code</Button>
+          <Grid container>
             <TextField id="file-name" placeholder="Enter file name" style={{ padding: '5px', marginTop: '10px' }} />
-            
+
             <FormControl style={{ padding: '5px', marginTop: '10px' }}>
               <InputLabel id="file-format-label">File Format</InputLabel>
               <Select
@@ -191,7 +191,7 @@ const WebEditor = () => {
                 value={fileFormat}
                 label="File Format"
                 onChange={(e) => setFileFormat(e.target.value)}
-                >
+              >
                 <MenuItem value="gltf">GLTF</MenuItem>
               </Select>
             </FormControl>
@@ -201,15 +201,15 @@ const WebEditor = () => {
               onClick={handleExport}
               style={{ padding: '10px', marginTop: '14px', height: '57px' }}>Export
             </Button>
-        </Grid>
-        {/* 경고 메시지 표시 */}
-        {alertMessage && <Alert severity='error'>{alertMessage}</Alert>}
-        {/* 3D 렌더링 출력 영역 */}
-        <div id="threejs-output" ref={mountRef} style={{ flex: 1, height: '100%', marginTop: '10px' }} />
-      </Container>
-    </div>}
+          </Grid>
+          {/* 경고 메시지 표시 */}
+          {alertMessage && <Alert severity='error'>{alertMessage}</Alert>}
+          {/* 3D 렌더링 출력 영역 */}
+          <div id="threejs-output" ref={mountRef} style={{ flex: 1, height: '100%', marginTop: '10px' }} />
+        </Container>
+      </div>}
     </>
-    
+
   );
 };
 
