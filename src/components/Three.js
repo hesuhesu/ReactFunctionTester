@@ -16,7 +16,7 @@ const Three = () => {
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(dracoLoader);
 
-  loader.load('/bike.gltf', (gltf) => {
+  loader.load('/korrigan wolf.gltf', (gltf) => {
     if (gltf.scene) {
       dracoLoader.dispose(); // 메모리 누수 방지
       const scene = gltf.scene;
@@ -30,6 +30,24 @@ const Three = () => {
       const meshInfoDiv = document.getElementById('information');
       const meshes = [];
       meshInfoDiv.innerHTML = '';
+      // 스크롤 조정 버튼 추가
+      const scrollToTopButton = document.createElement('button');
+      scrollToTopButton.innerText = '맨 위로 이동';
+
+      const scrollToBottomButton = document.createElement('button');
+      scrollToBottomButton.innerText = '맨 아래로 이동';
+      scrollToBottomButton.style.marginBottom = '20px';
+      
+      // 스크롤 조정 이벤트 핸들러 정의
+      scrollToTopButton.addEventListener('click', () => {
+        meshInfoDiv.scrollTop = 0;
+      });
+      scrollToBottomButton.addEventListener('click', () => {
+        meshInfoDiv.scrollTop = meshInfoDiv.scrollHeight;
+      });
+
+      meshInfoDiv.appendChild(scrollToBottomButton);
+
       scene.traverse((child) => {
         if (child.isMesh) {
           meshes.push(child);
@@ -73,8 +91,10 @@ const Three = () => {
       const saveButton = document.createElement('button');
       saveButton.type = 'button';
       saveButton.innerText = '파일 즉시 저장하기';
-      saveButton.style.marginTop = '10px';
       meshInfoDiv.appendChild(saveButton);
+
+      meshInfoDiv.appendChild(scrollToTopButton);
+      
 
       // 저장 버튼 클릭 이벤트 핸들러 함수
       function onSaveButtonClick() {
@@ -177,73 +197,113 @@ const Three = () => {
       lightControlsDiv.style.fontWeight = 'bold'; // 텍스트 굵게 표시
       lightControlsDiv.style.border = '2px solid black'; // 테두리 추가
       lightControlsDiv.style.padding = '10px'; // 테두리 안쪽 여백 추가
+      lightControlsDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.5)'; // 흰색에 50% 투명도
       lightControlsDiv.innerHTML = `
+        <div>
+          <label>배경 색 변경 :</label>
+          <input type="color" id="rendererBackgroundColor" value="#ffffff" />
+        </div>
+        <br>
         <div>
           <label>Directional Light Color:</label>
           <input type="color" id="directionalLightColor" value="#ffffff" />
-          <label>Intensity:</label>
-          <input type="range" id="directionalLightIntensity" min="0" max="2" step="0.01" value="1" />
+          <label>Intensity :</label>
+          <input type="range" id="directionalLightIntensity" min="0" max="5" step="0.01" value="1" />
         </div>
         <div>
-          <label>Ambient Light Color:</label>
+          <label>Ambient Light Color :</label>
           <input type="color" id="ambientLightColor" value="#ffffff" />
-          <label>Intensity:</label>
-          <input type="range" id="ambientLightIntensity" min="0" max="2" step="0.01" value="1" />
+          <label>Intensity :</label>
+          <input type="range" id="ambientLightIntensity" min="0" max="5" step="0.01" value="1" />
         </div>
         <div>
-          <label>Directional Light Position X:</label>
-          <input type="range" id="directionalLightPosX" min="-10" max="10" step="0.1" value="0" />
+          <label>Directional Light Position X :</label>
+          <input type="range" id="directionalLightPosX" min="-100" max="100" step="0.1" value="0" />
         </div>
         <div>
-          <label>Directional Light Position Y:</label>
-          <input type="range" id="directionalLightPosY" min="-10" max="10" step="0.1" value="1" />
+          <label>Directional Light Position Y :</label>
+          <input type="range" id="directionalLightPosY" min="-100" max="100" step="0.1" value="1" />
         </div>
         <div>
-          <label>Directional Light Position Z:</label>
-          <input type="range" id="directionalLightPosZ" min="-10" max="10" step="0.1" value="0" />
+          <label>Directional Light Position Z :</label>
+          <input type="range" id="directionalLightPosZ" min="-100" max="100" step="0.1" value="0" />
         </div>
       `;
       meshInfoDiv.appendChild(lightControlsDiv);
 
-      // 조명 값 변경 이벤트 핸들러 정의
-      const handleDirectionalLightColorChange = (event) => {
+      // Renderer 배경색 변경 이벤트 핸들러 정의
+      const handleRendererBackgroundColorChange = (event) => {
+        renderer.setClearColor(event.target.value);
+      };
+
+      // 조명 값 조정 UI에 초기화 버튼 추가
+      const resetButton = document.createElement('button');
+      resetButton.textContent = 'Reset to Default';
+      resetButton.style.marginTop = '10px'; // 버튼과 조명 조정 영역 사이의 간격 추가
+
+      // 초기화 버튼 클릭 시 호출할 함수 정의
+      const resetControls = () => {
+        document.getElementById('directionalLightColor').value = '#ffffff';
+        document.getElementById('directionalLightIntensity').value = '1';
+        document.getElementById('ambientLightColor').value = '#ffffff';
+        document.getElementById('ambientLightIntensity').value = '1';
+        document.getElementById('directionalLightPosX').value = '0';
+        document.getElementById('directionalLightPosY').value = '1';
+        document.getElementById('directionalLightPosZ').value = '0';
+
+        // 조명 값을 초기값으로 설정
+        directionalLight.color.set(new THREE.Color('#ffffff'));
+        directionalLight.intensity = 1;
+        ambientLight.color.set(new THREE.Color('#ffffff'));
+        ambientLight.intensity = 1;
+        directionalLight.position.set(0, 1, 0);
+      };
+
+      // 초기화 버튼 클릭 이벤트 리스너 등록
+      resetButton.addEventListener('click', resetControls);
+
+      // 초기화 버튼을 조명 조정 UI에 추가
+      lightControlsDiv.appendChild(resetButton);
+
+      // Renderer 배경색 입력 이벤트 리스너 등록
+      document.getElementById('rendererBackgroundColor').addEventListener('input', handleRendererBackgroundColorChange);
+
+      // Directional Light Color Change
+      document.getElementById('directionalLightColor').addEventListener('input', (event) => {
         const color = new THREE.Color(event.target.value);
         directionalLight.color.set(color);
-      };
+      });
 
-      const handleDirectionalLightIntensityChange = (event) => {
+      // Directional Light Intensity Change
+      document.getElementById('directionalLightIntensity').addEventListener('input', (event) => {
         directionalLight.intensity = parseFloat(event.target.value);
-      };
+      });
 
-      const handleAmbientLightColorChange = (event) => {
+      // Ambient Light Color Change
+      document.getElementById('ambientLightColor').addEventListener('input', (event) => {
         const color = new THREE.Color(event.target.value);
         ambientLight.color.set(color);
-      };
+      });
 
-      const handleAmbientLightIntensityChange = (event) => {
+      // Ambient Light Intensity Change
+      document.getElementById('ambientLightIntensity').addEventListener('input', (event) => {
         ambientLight.intensity = parseFloat(event.target.value);
-      };
+      });
 
-      const handleDirectionalLightPosXChange = (event) => {
+      // Directional Light Position X Change
+      document.getElementById('directionalLightPosX').addEventListener('input', (event) => {
         directionalLight.position.x = parseFloat(event.target.value);
-      };
+      });
 
-      const handleDirectionalLightPosYChange = (event) => {
+      // Directional Light Position Y Change
+      document.getElementById('directionalLightPosY').addEventListener('input', (event) => {
         directionalLight.position.y = parseFloat(event.target.value);
-      };
+      });
 
-      const handleDirectionalLightPosZChange = (event) => {
+      // Directional Light Position Z Change
+      document.getElementById('directionalLightPosZ').addEventListener('input', (event) => {
         directionalLight.position.z = parseFloat(event.target.value);
-      };
-
-      // 이벤트 리스너 등록
-      document.getElementById('directionalLightColor').addEventListener('input', handleDirectionalLightColorChange);
-      document.getElementById('directionalLightIntensity').addEventListener('input', handleDirectionalLightIntensityChange);
-      document.getElementById('ambientLightColor').addEventListener('input', handleAmbientLightColorChange);
-      document.getElementById('ambientLightIntensity').addEventListener('input', handleAmbientLightIntensityChange);
-      document.getElementById('directionalLightPosX').addEventListener('input', handleDirectionalLightPosXChange);
-      document.getElementById('directionalLightPosY').addEventListener('input', handleDirectionalLightPosYChange);
-      document.getElementById('directionalLightPosZ').addEventListener('input', handleDirectionalLightPosZChange);
+      });
 
       // 두 번 클릭 이벤트 핸들러 정의
       let autoRotate = false; // 자동 회전 상태 변수
