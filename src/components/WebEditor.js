@@ -1,215 +1,669 @@
-import React, { useRef, useState, useEffect } from 'react';
-import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
-import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter';
-import Container from '@mui/material/Container';
-import Grid from '@mui/material/Grid';
-import Button from '@mui/material/Button';
-import TextField from '@mui/material/TextField';
-import InputLabel from '@mui/material/InputLabel';
-import MenuItem from '@mui/material/MenuItem';
-import FormControl from '@mui/material/FormControl';
-import Select from '@mui/material/Select';
-import Alert from '@mui/material/Alert';
-
-const defaultCode = `
-// 정점 정의하기
-const vertices = [
-   1.0,  1.0,  1.0,  // Vertex 1
-  -1.0,  1.0,  1.0,  // Vertex 2
-   1.0, -1.0,  1.0,  // Vertex 3
-  -1.0, -1.0,  1.0,  // Vertex 4
-   1.0,  1.0, -1.0,  // Vertex 5
-  -1.0,  1.0, -1.0,  // Vertex 6
-   1.0, -1.0, -1.0,  // Vertex 7
-  -1.0, -1.0, -1.0   // Vertex 8
-];
-
-// 각 면을 구성하는 삼각형 index 정의
-const indices = [
-  0, 1, 2,  1, 3, 2,  // Front face
-  4, 5, 6,  5, 7, 6,  // Back face
-  0, 1, 4,  1, 5, 4,  // Top face
-  2, 3, 6,  3, 7, 6,  // Bottom face
-  0, 2, 4,  2, 6, 4,  // Right face
-  1, 3, 5,  3, 7, 5   // Left face
-];
-
-// 도형 색깔 정의
-const color = 0xff0000; // Red
-
-// 2D or 3D 결정
-const is3D = true;
-
-drawShape(vertices, indices, color, is3D);
-`;
+import React, { useEffect, useRef, useState } from "react";
+import * as THREE from "three";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
+import "../css/WebEditor.css"
 
 const WebEditor = () => {
-  const mountRef = useRef(null);  // DOM 참조를 위한 useRef hook 사용
-  const [code, setCode] = useState(defaultCode);  // 코드 상태를 관리하기 위한 useState hook 사용
-  const sceneRef = useRef(null);  // 씬 객체를 참조하기 위한 useRef hook 사용
-  const [fileFormat, setFileFormat] = React.useState('gltf'); // 기본 파일 포맷 gltf 설정
-  const [alertMessage, setAlertMessage] = useState(''); // 경고 메시지를 위한 상태 추가
-  const [true1, setTrue1] = useState(false);
+  const mountRef = useRef(null);
+  const [selectedShape, setSelectedShape] = useState(null);
+  const [config, setConfig] = useState({});
+  const [shapes, setShapes] = useState([]);
+  const rendererRef = useRef(null);
+  const sceneRef = useRef(null);
+  const cameraRef = useRef(null);
+  const controlsRef = useRef(null);
 
-  // 코드 실행 함수
-  const handleRunCode = () => {
-    const outputElement = document.getElementById('threejs-output');
-    // 이전 렌더러 제거
-    while (outputElement.firstChild) {
-      outputElement.removeChild(outputElement.firstChild);
-    }
+  // Setup scene, camera, renderer, and controls
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+  
+  // AxesHelper (축 헬퍼) 추가
+  const axesHelper = new THREE.AxesHelper(50);
+  // GridHelper (그리드 헬퍼) 추가
+  const gridHelper = new THREE.GridHelper(100, 100);
+  
+  const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  const ambientLight = new THREE.AmbientLight(0xffffff, 1);
+  useEffect(() => {
+    const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        preserveDrawingBuffer: true,
+    });
+    renderer.setSize(window.innerWidth, 900);
+    renderer.setClearColor(0xffffff); // 배경을 하얀색으로 설정
+    mountRef.current.appendChild(renderer.domElement);
+    camera.position.x = 5;
+    camera.position.y = 5;
+    camera.position.z = 5;
 
-    // 사용자가 입력한 코드를 실행
-    new Function('THREE', 'drawShape', 'mount', code)(THREE, drawShape, mountRef.current);
-  };
+    // OrbitControls 추가
+    const controls = new OrbitControls(camera, renderer.domElement);
+    scene.add(axesHelper);
+    scene.add(gridHelper);
 
-  // 도형을 그리는 함수
-  const drawShape = (vertices, indices, color, is3D) => {
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;  // 씬을 ref에 저장
-    const camera = is3D
-      ? new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
-      : new THREE.OrthographicCamera(window.innerWidth / -2, window.innerWidth / 2, window.innerHeight / 2, window.innerHeight / -2, 1, 1000);
+    
+    scene.add(ambientLight);
 
-    const renderer = new THREE.WebGLRenderer();
+    directionalLight.position.set(0, 1, 0);
+    scene.add(directionalLight);
 
-    const outputElement = document.getElementById('threejs-output');
-    renderer.setSize(outputElement.clientWidth, outputElement.clientHeight);
-    outputElement.appendChild(renderer.domElement);
+    const meshInfoDiv = document.getElementById('light-information'); // 불러오기
+    meshInfoDiv.innerHTML = '';
+    
+    // 조명 값 조정 UI 추가 (색상 및 강도)
+    const lightControlsDiv = document.createElement('div');
+    lightControlsDiv.style.fontWeight = 'bold'; // 텍스트 굵게 표시
+    lightControlsDiv.style.border = '2px solid black'; // 테두리 추가
+    lightControlsDiv.style.padding = '10px'; // 테두리 안쪽 여백 추가
+    lightControlsDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.5)'; // 흰색에 50% 투명도
+    lightControlsDiv.innerHTML = `
+      <div>
+        <label>배경 색 변경 :</label>
+        <input type="color" id="rendererBackgroundColor-webgl" value="#ffffff" />
+      </div>
+      <br>
+      <div>
+        <label>Directional Light Color:</label>
+        <input type="color" id="directionalLightColor-webgl" value="#ffffff" />
+        <label>Intensity :</label>
+        <input type="range" id="directionalLightIntensity-webgl" min="0" max="5" step="0.01" value="1" />
+      </div>
+      <div>
+        <label>Ambient Light Color :</label>
+        <input type="color" id="ambientLightColor-webgl" value="#ffffff" />
+        <label>Intensity :</label>
+        <input type="range" id="ambientLightIntensity-webgl" min="0" max="5" step="0.01" value="1" />
+      </div>
+      <div>
+        <label>Directional Light Position X :</label>
+        <input type="range" id="directionalLightPosX-webgl" min="-100" max="100" step="0.1" value="0" />
+      </div>
+      <div>
+        <label>Directional Light Position Y :</label>
+        <input type="range" id="directionalLightPosY-webgl" min="-100" max="100" step="0.1" value="1" />
+      </div>
+      <div>
+        <label>Directional Light Position Z :</label>
+        <input type="range" id="directionalLightPosZ-webgl" min="-100" max="100" step="0.1" value="0" />
+      </div>
+    `;
+    meshInfoDiv.appendChild(lightControlsDiv);
 
-    // 3D 모드에서의 카메라 컨트롤 설정
-    let controls;
-    if (is3D) {
-      controls = new OrbitControls(camera, renderer.domElement);
-      camera.position.set(0, 0, 5);
-      controls.update();
-    } else {
-      camera.position.z = 1;
-    }
-
-    // Geometry와 Material 설정, 지오메트리 : 3D 객체의 모양과 구조, 매터리얼 : 3D 객체의 표면
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(vertices), 3));
-    geometry.setIndex(new THREE.BufferAttribute(new Uint16Array(indices), 1));
-
-    const material = new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide });
-    const shape = new THREE.Mesh(geometry, material);
-    scene.add(shape);
-
-    // 3D 모드에서 윤곽선 추가
-    if (is3D) {
-      const edgesGeometry = new THREE.EdgesGeometry(geometry, 1);  // 1은 임계각도
-      const edgesMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-      const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
-      scene.add(edges);
-    }
-
-    // 애니메이션 루프
-    const animate = function () {
-      requestAnimationFrame(animate);
-      if (is3D && controls) {
-        controls.update();
-      }
-      renderer.render(scene, camera);
+    // Renderer 배경색 변경 이벤트 핸들러 정의
+    const handleRendererBackgroundColorChange = (event) => {
+      renderer.setClearColor(event.target.value);
     };
 
-    animate();
-  };
+    // 조명 값 조정 UI에 초기화 버튼 추가
+    const resetButton = document.createElement('button');
+    resetButton.textContent = 'Reset to Default';
+    resetButton.style.marginTop = '10px'; // 버튼과 조명 조정 영역 사이의 간격 추가
 
-  // 파일 내보내기 함수
-  const handleExport = () => {
-    // const format = document.getElementById('file-format').value;
-    const filename = document.getElementById('file-name').value;
+    // 초기화 버튼 클릭 시 호출할 함수 정의
+    const resetControls = () => {
+      document.getElementById('directionalLightColor-webgl').value = '#ffffff';
+      document.getElementById('directionalLightIntensity-webgl').value = '1';
+      document.getElementById('ambientLightColor-webgl').value = '#ffffff';
+      document.getElementById('ambientLightIntensity-webgl').value = '1';
+      document.getElementById('directionalLightPosX-webgl').value = '0';
+      document.getElementById('directionalLightPosY-webgl').value = '1';
+      document.getElementById('directionalLightPosZ-webgl').value = '0';
 
-    if (!filename) {
-      setAlertMessage("파일명을 입력해 주세요.");
-      return;
-    }
+      // 조명 값을 초기값으로 설정
+      directionalLight.color.set(new THREE.Color('#ffffff'));
+      directionalLight.intensity = 1;
+      ambientLight.color.set(new THREE.Color('#ffffff'));
+      ambientLight.intensity = 1;
+      directionalLight.position.set(0, 1, 0);
+    };
 
-    setAlertMessage('');
+    // 초기화 버튼 클릭 이벤트 리스너 등록
+    resetButton.addEventListener('click', resetControls);
 
-    const scene = sceneRef.current;
-    if (scene) {
-      const exporter = new GLTFExporter();
-      exporter.parse(
-        scene,
-        function (result) {
-          const output = JSON.stringify(result, null, 2);
-          saveString(output, filename + '.gltf');
-        },
-        function (error) {
-          console.error('An error occurred during parsing', error);
-        }
-      );
-    }
-  };
+    // 초기화 버튼을 조명 조정 UI에 추가
+    lightControlsDiv.appendChild(resetButton);
 
+    // Renderer 배경색 입력 이벤트 리스너 등록
+    document.getElementById('rendererBackgroundColor-webgl').addEventListener('input', handleRendererBackgroundColorChange);
 
-  // 문자열 저장 함수
-  const saveString = (text, filename) => {
-    const blob = new Blob([text], { type: 'text/plain' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-  };
+    // Directional Light Color Change
+    document.getElementById('directionalLightColor-webgl').addEventListener('input', (event) => {
+      const color = new THREE.Color(event.target.value);
+      directionalLight.color.set(color);
+    });
 
-  const handleTrue = () => {
-    setTrue1(!true1);
-  }
+    // Directional Light Intensity Change
+    document.getElementById('directionalLightIntensity-webgl').addEventListener('input', (event) => {
+      directionalLight.intensity = parseFloat(event.target.value);
+    });
 
-  // 컴포넌트가 마운트될 때 캔버스 크기 설정
+    // Ambient Light Color Change
+    document.getElementById('ambientLightColor-webgl').addEventListener('input', (event) => {
+      const color = new THREE.Color(event.target.value);
+      ambientLight.color.set(color);
+    });
+
+    // Ambient Light Intensity Change
+    document.getElementById('ambientLightIntensity-webgl').addEventListener('input', (event) => {
+      ambientLight.intensity = parseFloat(event.target.value);
+    });
+
+    // Directional Light Position X Change
+    document.getElementById('directionalLightPosX-webgl').addEventListener('input', (event) => {
+      directionalLight.position.x = parseFloat(event.target.value);
+    });
+
+    // Directional Light Position Y Change
+    document.getElementById('directionalLightPosY-webgl').addEventListener('input', (event) => {
+      directionalLight.position.y = parseFloat(event.target.value);
+    });
+
+    // Directional Light Position Z Change
+    document.getElementById('directionalLightPosZ-webgl').addEventListener('input', (event) => {
+      directionalLight.position.z = parseFloat(event.target.value);
+    });
+
+    rendererRef.current = renderer;
+    sceneRef.current = scene;
+    cameraRef.current = camera;
+    controlsRef.current = controls;
+
+    return () => {
+      // Cleanup
+      mountRef.current.removeChild(renderer.domElement);
+      lightControlsDiv.innerHTML = '';
+      meshInfoDiv.innerHTML = '';
+    };
+  }, []);
+
+  // Render loop
   useEffect(() => {
-    const canvas = mountRef.current;
-    if (canvas) {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
+    if (rendererRef.current && sceneRef.current && cameraRef.current && controlsRef.current) {
+      const renderer = rendererRef.current;
+      const scene = sceneRef.current;
+      const camera = cameraRef.current;
+      const controls = controlsRef.current;
+
+      const animate = () => {
+        requestAnimationFrame(animate);
+        controls.update();
+        renderer.render(scene, camera);
+      };
+      animate();
     }
   }, []);
 
+  // Function to create shapes
+  const addShapeToScene = (shape) => {
+    const scene = sceneRef.current;
+    const { type, config } = shape;
+    const { x = 0, y = 0, z = 0 } = config;
+    const radialSegments = Math.max(3, config.radialSegments || 32); // 최소값 3으로 설정
+  
+    // Validation
+    if (type === "box" && (config.width <= 0 || config.height <= 0 || config.depth <= 0)) {
+      alert("Box dimensions must be greater than 0.");
+      return;
+    }
+    if (type === "line" && config.length <= 0) {
+      alert("Line length must be greater than 0.");
+      return;
+    }
+    if (type === "sphere" && config.radius <= 0) {
+      alert("Sphere radius must be greater than 0.");
+      return;
+    }
+    if (type === "plane" && (config.width <= 0 || config.height <= 0)) {
+      alert("Plane dimensions must be greater than 0.");
+      return;
+    }
+    if (type === "circle" && config.radius <= 0) {
+      alert("Circle radius must be greater than 0.");
+      return;
+    }
+    if (type === "cylinder" && (config.radiusTop <= 0 || config.radiusBottom <= 0 || config.height <= 0)) {
+      alert("Cylinder dimensions must be greater than 0.");
+      return;
+    }
+    if (type === "cone" && (config.radius <= 0 || config.height <= 0)) {
+      alert("Cone dimensions must be greater than 0.");
+      return;
+    }
+    if (type === "torus" && (config.radius <= 0 || config.tube <= 0)) {
+      alert("Torus dimensions must be greater than 0.");
+      return;
+    }
+  
+    let mesh;
+    let material;
+  
+    // Material 선택
+    switch (config.materialType) {
+      case "basic":
+        material = new THREE.MeshBasicMaterial({ color: config.color || 0x000000 });
+        break;
+      case "lambert":
+        material = new THREE.MeshLambertMaterial({ color: config.color || 0x000000 });
+        break;
+      case "phong":
+        material = new THREE.MeshPhongMaterial({ color: config.color || 0x000000 });
+        break;
+      case "standard":
+        material = new THREE.MeshStandardMaterial({ color: config.color || 0x000000 });
+        break;
+      default:
+        material = new THREE.MeshBasicMaterial({ color: config.color || 0x000000 });
+    }
+  
+    // Create geometry and mesh based on shape type
+    switch (type) {
+      case "box":
+        const boxGeometry = new THREE.BoxGeometry(config.width || 1, config.height || 1, config.depth || 1);
+        mesh = new THREE.Mesh(boxGeometry, material);
+        break;
+      case "line":
+        const lineMaterial = new THREE.LineBasicMaterial({ color: config.color || 0xffffff });
+        const points = [new THREE.Vector3(x, y, z), new THREE.Vector3(x + (config.length || 10), y, z)];
+        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+        mesh = new THREE.Line(lineGeometry, lineMaterial);
+        break;
+      case "sphere":
+        const sphereGeometry = new THREE.SphereGeometry(config.radius || 1, config.widthSegments || 32, config.heightSegments || 16);
+        mesh = new THREE.Mesh(sphereGeometry, material);
+        break;
+      case "plane":
+        const planeGeometry = new THREE.PlaneGeometry(config.width || 1, config.height || 1);
+        mesh = new THREE.Mesh(planeGeometry, material);
+        break;
+      case "circle":
+        const circleGeometry = new THREE.CircleGeometry(config.radius || 1, radialSegments);
+        mesh = new THREE.Mesh(circleGeometry, material);
+        break;
+      case "cylinder":
+        const cylinderGeometry = new THREE.CylinderGeometry(config.radiusTop || 1, config.radiusBottom || 1, config.height || 2, radialSegments);
+        mesh = new THREE.Mesh(cylinderGeometry, material);
+        break;
+      case "cone":
+        const coneGeometry = new THREE.ConeGeometry(config.radius || 1, config.height || 2, radialSegments);
+        mesh = new THREE.Mesh(coneGeometry, material);
+        break;
+      case "torus":
+        const torusGeometry = new THREE.TorusGeometry(config.radius || 1, config.tube || 0.4, radialSegments, config.tubularSegments || 100);
+        mesh = new THREE.Mesh(torusGeometry, material);
+        break;
+      default:
+        console.error(`Unknown shape type: ${type}`);
+        return;
+    }
+  
+    if (mesh) {
+      mesh.position.set(x, y, z);
+      scene.add(mesh);
+      // 상태에 추가
+      setShapes((prevShapes) => [...prevShapes, { type, config, mesh }]);
+    }
+  };
+
+  const removeShapeFromScene = (index) => {
+    setShapes((prevShapes) => {
+      const shapeToRemove = prevShapes[index];
+      if (shapeToRemove.mesh) {
+        sceneRef.current.remove(shapeToRemove.mesh);
+      }
+      return prevShapes.filter((_, i) => i !== index);
+    });
+  };
+
+  const handleAddShape = () => {
+    if (selectedShape) {
+      addShapeToScene({ type: selectedShape, config });
+    }
+  };
+
+  const handleShapeSelect = (shape) => {
+    setSelectedShape(shape);
+    setConfig({});
+  };
+
+  const handleConfigChange = (e) => {
+    setConfig({
+      ...config,
+      [e.target.name]: e.target.value,
+    });
+  };
+
   return (
-    <>
-      <button onClick={handleTrue}>Web Editor</button>
-      {true1 && <div style={{ backgroundColor: '#F9F9F9', height: '100vh' }}>
-        <Container style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-          {/* 코드 입력 영역 */}
-          <textarea
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            style={{ flex: 1, fontFamily: 'monospace', fontSize: '16px', resize: 'none', marginTop: '10px' }}
+    <div>
+      <div>
+        <button onClick={() => handleShapeSelect("box")}>Add Box</button>
+        <button onClick={() => handleShapeSelect("line")}>Add Line</button>
+        <button onClick={() => handleShapeSelect("sphere")}>Add Sphere</button>
+        <button onClick={() => handleShapeSelect("plane")}>Add Plane</button>
+        <button onClick={() => handleShapeSelect("circle")}>Add Circle</button>
+        <button onClick={() => handleShapeSelect("cylinder")}>Add Cylinder</button>
+        <button onClick={() => handleShapeSelect("cone")}>Add Cone</button>
+        <button onClick={() => handleShapeSelect("torus")}>Add Torus</button>
+      </div>
+
+      {selectedShape && (
+  <div className="config-form">
+    <h3>Configure {selectedShape}</h3>
+    
+    {/* Position settings */}
+    <div className="position-settings">
+      <label>
+        X Position:
+        <input
+          type="number"
+          name="x"
+          value={config.x || ""}
+          onChange={handleConfigChange}
+        />
+      </label>
+      <label>
+        Y Position:
+        <input
+          type="number"
+          name="y"
+          value={config.y || ""}
+          onChange={handleConfigChange}
+        />
+      </label>
+      <label>
+        Z Position:
+        <input
+          type="number"
+          name="z"
+          value={config.z || ""}
+          onChange={handleConfigChange}
+        />
+      </label>
+    </div>
+    {/* Other settings */}
+    <div className="other-settings">
+      {selectedShape === "box" && (
+        <>
+          <label>
+            Width:
+            <input
+              type="number"
+              name="width"
+              value={config.width || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Height:
+            <input
+              type="number"
+              name="height"
+              value={config.height || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Depth:
+            <input
+              type="number"
+              name="depth"
+              value={config.depth || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "line" && (
+        <>
+          <label>
+            Length:
+            <input
+              type="number"
+              name="length"
+              value={config.length || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "sphere" && (
+        <>
+          <label>
+            Radius:
+            <input
+              type="number"
+              name="radius"
+              value={config.radius || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Width Segments:
+            <input
+              type="number"
+              name="widthSegments"
+              value={config.widthSegments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Height Segments:
+            <input
+              type="number"
+              name="heightSegments"
+              value={config.heightSegments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "plane" && (
+        <>
+          <label>
+            Width:
+            <input
+              type="number"
+              name="width"
+              value={config.width || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Height:
+            <input
+              type="number"
+              name="height"
+              value={config.height || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "circle" && (
+        <>
+          <label>
+            Radius:
+            <input
+              type="number"
+              name="radius"
+              value={config.radius || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Segments:
+            <input
+              type="number"
+              name="segments"
+              value={config.segments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "cylinder" && (
+        <>
+          <label>
+            Radius Top:
+            <input
+              type="number"
+              name="radiusTop"
+              value={config.radiusTop || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Radius Bottom:
+            <input
+              type="number"
+              name="radiusBottom"
+              value={config.radiusBottom || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Height:
+            <input
+              type="number"
+              name="height"
+              value={config.height || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Radial Segments:
+            <input
+              type="number"
+              name="radialSegments"
+              value={config.radialSegments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "cone" && (
+        <>
+          <label>
+            Radius:
+            <input
+              type="number"
+              name="radius"
+              value={config.radius || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Height:
+            <input
+              type="number"
+              name="height"
+              value={config.height || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Radial Segments:
+            <input
+              type="number"
+              name="radialSegments"
+              value={config.radialSegments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+      {selectedShape === "torus" && (
+        <>
+          <label>
+            Radius:
+            <input
+              type="number"
+              name="radius"
+              value={config.radius || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Tube:
+            <input
+              type="number"
+              name="tube"
+              value={config.tube || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Radial Segments:
+            <input
+              type="number"
+              name="radialSegments"
+              value={config.radialSegments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+          <label>
+            Tubular Segments:
+            <input
+              type="number"
+              name="tubularSegments"
+              value={config.tubularSegments || ""}
+              onChange={handleConfigChange}
+            />
+          </label>
+        </>
+      )}
+
+      {/* Color and material type */}
+      <div className="additional-settings">
+        <label>
+          Color:
+          <input
+            type="color"
+            name="color"
+            value={config.color || "#ffffff"}
+            onChange={handleConfigChange}
           />
-          <Button variant="contained" onClick={handleRunCode} style={{ padding: '10px' }}>Run Code</Button>
-          <Grid container>
-            <TextField id="file-name" placeholder="Enter file name" style={{ padding: '5px', marginTop: '10px' }} />
+        </label>
+        <label>
+          Material Type:
+          <select
+            name="materialType"
+            value={config.materialType || "basic"}
+            onChange={handleConfigChange}
+          >
+            <option value="basic">Basic</option>
+            <option value="lambert">Lambert</option>
+            <option value="phong">Phong</option>
+            <option value="standard">Standard</option>
+          </select>
+        </label>
+      </div>
 
-            <FormControl style={{ padding: '5px', marginTop: '10px' }}>
-              <InputLabel id="file-format-label">File Format</InputLabel>
-              <Select
-                labelId="file-format-label"
-                id="file-format"
-                value={fileFormat}
-                label="File Format"
-                onChange={(e) => setFileFormat(e.target.value)}
-              >
-                <MenuItem value="gltf">GLTF</MenuItem>
-              </Select>
-            </FormControl>
+      <button onClick={handleAddShape}>Add {selectedShape}</button>
+    </div>
+  </div>
+)}
 
-            <Button
-              variant="outlined"
-              onClick={handleExport}
-              style={{ padding: '10px', marginTop: '14px', height: '57px' }}>Export
-            </Button>
-          </Grid>
-          {/* 경고 메시지 표시 */}
-          {alertMessage && <Alert severity='error'>{alertMessage}</Alert>}
-          {/* 3D 렌더링 출력 영역 */}
-          <div id="threejs-output" ref={mountRef} style={{ flex: 1, height: '100%', marginTop: '10px' }} />
-        </Container>
-      </div>}
-    </>
 
+      <h3>Added Shapes:</h3>
+      <div className="added-shapes">
+        
+        <ul>
+          {shapes.map((shape, index) => (
+            <li key={index}>
+              {shape.type} - {JSON.stringify(shape.config)}{" "}
+              <button onClick={() => removeShapeFromScene(index)}>X</button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+    <div className = "webgl-canvas-container">
+        <div className= "webgl-threeD"ref={mountRef}></div>
+        <div id ="light-information"></div>
+    </div>
+      
+    </div>
   );
 };
 
