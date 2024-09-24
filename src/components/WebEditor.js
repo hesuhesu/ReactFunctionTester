@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import "../css/WebEditor.css";
+import { render } from '@testing-library/react';
 
 const WebEditor = () => {
   const canvasRef = useRef();
@@ -14,7 +15,19 @@ const WebEditor = () => {
   const [objects, setObjects] = useState([]);
   const [selectedShape, setSelectedShape] = useState('box');
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
-  const [shapeSettings, setShapeSettings] = useState({
+
+  const [sceneSettings, setSceneSettings] = useState({ // 조명 세팅
+    rendererBackgroundColor: "#ffffff",
+    directionalLightColor: "#ffffff",
+    directionalLightIntensity: 1,
+    ambientLightColor: "#ffffff",
+    ambientLightIntensity: 1,
+    directionalLightPosX: 0,
+    directionalLightPosY: 1,
+    directionalLightPosZ: 0,
+  });
+
+  const [shapeSettings, setShapeSettings] = useState({ // 모양 세팅
     width: 1,
     height: 1,
     depth: 1,
@@ -25,16 +38,18 @@ const WebEditor = () => {
     posZ: 0,
   });
 
-  const [sceneSettings, setSceneSettings] = useState({
-    rendererBackgroundColor: "#ffffff",
-    directionalLightColor: "#ffffff",
-    directionalLightIntensity: 1,
-    ambientLightColor: "#ffffff",
-    ambientLightIntensity: 1,
-    directionalLightPosX: 0,
-    directionalLightPosY: 1,
-    directionalLightPosZ: 0,
+  const [shapeModifySettings, setShapeModifySettings] = useState({ // 모양 수정 세팅
+    width: 1,
+    height: 1,
+    depth: 1,
+    radius: 1,
+    color: '#ffffff',
+    posX: 0,
+    posY: 0,
+    posZ: 0,
   });
+
+  const [editingIndex, setEditingIndex] = useState(null); // 수정 중인 도형의 인덱스
 
   useEffect(() => {
     const scene = new THREE.Scene();
@@ -103,6 +118,21 @@ const WebEditor = () => {
       );
     }
   }, [sceneSettings]);
+
+  /*
+  useEffect(() => {
+    const controls = controlsRef.current;
+    const renderer = rendererRef.current;
+    const scene = sceneRef.current;
+    const camera = cameraRef.current;
+    const animate = () => {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    };
+    animate();
+  }, [shapeSettings]);
+  */
 
   const handleChange = (event) => {
     const { id, value } = event.target;
@@ -190,11 +220,71 @@ const WebEditor = () => {
     setObjects((prevObjects) => [...prevObjects, mesh]);
   };
 
+  const editShape = (index) => {
+    const obj = objects[index];
+    setShapeSettings({
+      width: obj.geometry.parameters.width || 1,
+      height: obj.geometry.parameters.height || 1,
+      depth: obj.geometry.parameters.depth || 1,
+      radius: obj.geometry.parameters.radius || 1,
+      color: `#${obj.material.color.getHexString()}`,
+      posX: obj.position.x,
+      posY: obj.position.y,
+      posZ: obj.position.z,
+    });
+    setEditingIndex(index);
+  };
+
+  const applyChanges = () => {
+    if (editingIndex !== null) {
+      const obj = objects[editingIndex];
+      obj.material.dispose(); // 기존 재질 제거
+
+      let material;
+      const color = shapeSettings.color;
+      // 재질 선택 로직
+    switch (selectedMaterial) {
+      case 'basic':
+        material = new THREE.MeshBasicMaterial({ color });
+        break;
+      case 'standard':
+        material = new THREE.MeshStandardMaterial({ color });
+        break;
+      case 'phong':
+        material = new THREE.MeshPhongMaterial({ color });
+        break;
+      case 'lambert':
+        material = new THREE.MeshLambertMaterial({ color });
+        break;
+      case 'depth':
+        material = new THREE.MeshDepthMaterial({ color });
+        break;
+      case 'matcap':
+        material = new THREE.MeshMatcapMaterial({ color });
+        break;
+      case 'toon':
+        material = new THREE.MeshToonMaterial({ color });
+        break;
+      case 'physical':
+        material = new THREE.MeshPhysicalMaterial({ color });
+        break;
+      default:
+        material = new THREE.MeshStandardMaterial({ color });
+    }
+
+      obj.material = material;
+      obj.position.set(shapeSettings.posX, shapeSettings.posY, shapeSettings.posZ);
+      setEditingIndex(null); // 수정 모드 해제
+    }
+  };
+
+
   const removeShape = (index) => {
     const updatedObjects = [...objects];
     const objToRemove = updatedObjects[index];
     sceneRef.current.remove(objToRemove);
     setObjects(updatedObjects.filter((_, i) => i !== index));
+    setEditingIndex(null);
   };
 
   const [intervalId, setIntervalId] = useState(null);
@@ -363,10 +453,50 @@ const WebEditor = () => {
                 <h3>추가된 도형 목록</h3>
                 {objects.map((obj, index) => (
                   <div key={index}>
-                    <span onMouseEnter={() => handleMouseEnter(index)} onMouseLeave={() => handleMouseLeave(index)}>도형 {index + 1}</span>
+                    <span  onMouseEnter={() => handleMouseEnter(index)} onMouseLeave={() => handleMouseLeave(index)}>도형 {index + 1} </span>
+                    <button onClick={() => editShape(index)}>도형 수정</button>
                     <button onClick={() => removeShape(index)}>삭제</button>
                   </div>
                 ))}
+                {editingIndex !== null && (
+              <div style={{ border: '2px solid black', padding: '10px', marginTop: '10px', backgroundColor: 'rgba(255, 255, 255, 1)'}}>
+                <h3>도형 {editingIndex + 1} 수정 중</h3>
+                <div>
+                <label>재질 선택 :</label>
+                <select value={selectedMaterial} onChange={(e) => setSelectedMaterial(e.target.value)}>
+                  <option value="basic">Basic</option>
+                  <option value="depth">Depth</option>
+                  <option value="lambert">Lambert</option>
+                  <option value="matcap">Matcap</option>
+                  <option value="phong">Phong</option>
+                  <option value="physical">Physical</option>
+                  <option value="standard">Standard</option>
+                  <option value="toon">Toon</option>
+                </select>
+              </div>
+                <div>
+                  <label>가로 (Width):</label>
+                  <input type="number" id="width" value={shapeSettings.width} onChange={handleShapeChange} /><br />
+                  <label>세로 (Height):</label>
+                  <input type="number" id="height" value={shapeSettings.height} onChange={handleShapeChange} /><br />
+                  <label>깊이 (Depth):</label>
+                  <input type="number" id="depth" value={shapeSettings.depth} onChange={handleShapeChange} /><br />
+                </div>
+                <div>
+                  <label>색상 (Color):</label>
+                  <input type="color" id="color" value={shapeSettings.color} onChange={handleShapeChange} />
+                </div>
+                <div>
+                  <label>X : </label>
+                  <input type="number" id="posX" value={shapeSettings.posX} onChange={handleShapeChange} /><br />
+                  <label>Y : </label>
+                  <input type="number" id="posY" value={shapeSettings.posY} onChange={handleShapeChange} /><br />
+                  <label>Z : </label>
+                  <input type="number" id="posZ" value={shapeSettings.posZ} onChange={handleShapeChange} /><br />
+                </div>
+                <button onClick={applyChanges}>적용</button>
+              </div>
+            )}
               </div>
           </div>
         </div>
