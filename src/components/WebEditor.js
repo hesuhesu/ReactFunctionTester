@@ -50,7 +50,7 @@ const WebEditor = () => {
       alpha: false,
       preserveDrawingBuffer: true,
     });
-    renderer.setSize(window.innerWidth, 900);
+    renderer.setSize(window.innerWidth / 1.2, 900);
     renderer.setClearColor(sceneSettings.rendererBackgroundColor, 1);
     rendererRef.current = renderer;
 
@@ -139,6 +139,18 @@ const WebEditor = () => {
       case 'lambert':
         material = new THREE.MeshLambertMaterial({ color });
         break;
+      case 'depth':
+        material = new THREE.MeshDepthMaterial({ color });
+        break;
+      case 'matcap':
+        material = new THREE.MeshMatcapMaterial({ color });
+        break;
+      case 'toon':
+        material = new THREE.MeshToonMaterial({ color });
+        break;
+      case 'physical':
+        material = new THREE.MeshPhysicalMaterial({ color });
+        break;
       default:
         material = new THREE.MeshStandardMaterial({ color });
     }
@@ -147,14 +159,23 @@ const WebEditor = () => {
       case 'box':
         geometry = new THREE.BoxGeometry(width, height, depth);
         break;
-      case 'sphere':
-        geometry = new THREE.SphereGeometry(radius, 32, 32);
+      case 'capsule':
+        geometry = new THREE.CapsuleGeometry(radius, depth, 16, 50);
+        break;
+      case 'cone':
+        geometry = new THREE.ConeGeometry(radius, height, 32);
         break;
       case 'cylinder':
         geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
         break;
-      case 'cone':
-        geometry = new THREE.ConeGeometry(radius, height, 32);
+      case 'dodecahedron':
+        geometry = new THREE.DodecahedronGeometry(radius, 3);
+        break;
+      case 'icosahedron':
+        geometry = new THREE.IcosahedronGeometry(radius, 3);
+        break;
+      case 'sphere':
+        geometry = new THREE.SphereGeometry(radius, 32, 32);
         break;
       case 'torus':
         geometry = new THREE.TorusGeometry(radius, radius / 2, 16, 100);
@@ -176,44 +197,56 @@ const WebEditor = () => {
     setObjects(updatedObjects.filter((_, i) => i !== index));
   };
 
-  const [hoveredObjectIndex, setHoveredObjectIndex] = useState(null);
   const [intervalId, setIntervalId] = useState(null);
 
   const handleMouseEnter = (index) => {
-    setHoveredObjectIndex(index);
+    
     const obj = objects[index];
-
-    let isEmissiveOn = false;
-
-    // 0.5초 간격으로 깜빡이는 효과
-    const blinkInterval = setInterval(() => {
-      if (obj.material && obj.material.emissive) {
-        if (isEmissiveOn) {
-          obj.material.emissive.setHex(0x000000); // 어둡게
-        } else {
-          obj.material.emissive.setHex(0xffffff); // 밝게
-        }
-        isEmissiveOn = !isEmissiveOn;
-      }
-    }, 500); // 500ms 간격으로 깜빡임
-
-    setIntervalId(blinkInterval);
+  
+    // Save the original color
+    const originalColor = obj.material.color.getHex();
+  
+    // Start the color transition effect
+    const rainbowColors = [
+      0xff0000, // Red
+      0xff7f00, // Orange
+      0xffff00, // Yellow
+      0x00ff00, // Green
+      0x0000ff, // Blue
+      0x4b0082, // Indigo
+      0x8b00ff  // Violet
+    ];
+  
+    let colorIndex = 0;
+    let colorTransitionInterval = null;
+  
+    // Function to update the color
+    const updateColor = () => {
+      obj.material.color.setHex(rainbowColors[colorIndex]);
+      colorIndex = (colorIndex + 1) % rainbowColors.length;
+    };
+  
+    // Change color every 500ms
+    colorTransitionInterval = setInterval(updateColor, 500);
+  
+    // Store interval ID and original color
+    setIntervalId(colorTransitionInterval);
+    obj.userData.originalColor = originalColor;
   };
-
+  
   const handleMouseLeave = (index) => {
     const obj = objects[index];
-
-    // 마우스가 떠났을 때, emissive를 원상복귀하고 깜빡임 중단
-    if (obj.material && obj.material.emissive) {
-      obj.material.emissive.setHex(0x000000); // 빛을 제거
+  
+    // Revert to the original color
+    if (obj.material) {
+      obj.material.color.setHex(obj.userData.originalColor || 0xffffff);
     }
-
+  
+    // Clear the color transition interval
     if (intervalId) {
-      clearInterval(intervalId); // 깜빡임 중지
+      clearInterval(intervalId);
       setIntervalId(null);
     }
-
-    setHoveredObjectIndex(null);
   };
 
   const resetControls = () => {
@@ -273,9 +306,12 @@ const WebEditor = () => {
                 <label>도형 선택 :</label>
                 <select value={selectedShape} onChange={(e) => setSelectedShape(e.target.value)}>
                   <option value="box">Box</option>
-                  <option value="sphere">Sphere</option>
-                  <option value="cylinder">Cylinder</option>
+                  <option value="capsule">Capsule</option>
                   <option value="cone">Cone</option>
+                  <option value="cylinder">Cylinder</option>
+                  <option value="dodecahedron">Dodecahedron</option>
+                  <option value="icosahedron">Icosahedron</option>
+                  <option value="sphere">Sphere</option>
                   <option value="torus">Torus</option>
                 </select>
               </div>
@@ -283,9 +319,13 @@ const WebEditor = () => {
                 <label>재질 선택 :</label>
                 <select value={selectedMaterial} onChange={(e) => setSelectedMaterial(e.target.value)}>
                   <option value="basic">Basic</option>
+                  <option value="depth">Depth</option>
                   <option value="lambert">Lambert</option>
-                  <option value="standard">Standard</option>
+                  <option value="matcap">Matcap</option>
                   <option value="phong">Phong</option>
+                  <option value="physical">Physical</option>
+                  <option value="standard">Standard</option>
+                  <option value="toon">Toon</option>
                 </select>
               </div>
               <div>
@@ -322,12 +362,8 @@ const WebEditor = () => {
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)', maxHeight:'300px', overflowY:'auto'}}>
                 <h3>추가된 도형 목록</h3>
                 {objects.map((obj, index) => (
-                  <div
-                    key={index}
-                    onMouseEnter={() => handleMouseEnter(index)}
-                    onMouseLeave={() => handleMouseLeave(index)}
-                  >
-                    <span>도형 {index + 1}</span>
+                  <div key={index}>
+                    <span onMouseEnter={() => handleMouseEnter(index)} onMouseLeave={() => handleMouseLeave(index)}>도형 {index + 1}</span>
                     <button onClick={() => removeShape(index)}>삭제</button>
                   </div>
                 ))}
