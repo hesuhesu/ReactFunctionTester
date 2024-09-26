@@ -27,10 +27,19 @@ const WebEditor = () => {
   });
 
   const [shapeSettings, setShapeSettings] = useState({ // 모양 세팅
-    width: 0,
-    height: 0,
-    depth: 0,
-    radius: 0,
+    length: 1,
+    width: 1, widthSegments: 1,
+    height: 1, heightSegments: 1,
+    depth: 1, depthSegments: 1,
+    radius: 1, radialSegments: 8, radiusTop: 1, radiusBottom: 1,
+    capSegments: 4,
+    thetaStart: 0, thetaLength: 2 * Math.PI,
+    phiStart:0, phiLength: 2 * Math.PI,
+    tube: 0.4,
+    tubularSegments: 48,
+    arc: 2 * Math.PI,
+    detail: 0,
+    openEnded : false,
     color: '#ffffff',
     posX: 0,
     posY: 0,
@@ -38,10 +47,19 @@ const WebEditor = () => {
   });
 
   const [shapeModifySettings, setShapeModifySettings] = useState({ // 모양 수정 세팅
-    width: 0,
-    height: 0,
-    depth: 0,
-    radius: 0,
+    length: 1,
+    width: 1, widthSegments: 1,
+    height: 1, heightSegments: 1,
+    depth: 1, depthSegments: 1,
+    radius: 1, radialSegments: 8, radiusTop: 1, radiusBottom: 1,
+    capSegments: 4,
+    thetaStart: 0, thetaLength: 2 * Math.PI,
+    phiStart:0, phiLength: 2 * Math.PI,
+    tube: 0.4,
+    tubularSegments: 48,
+    arc: 2 * Math.PI,
+    detail: 0,
+    openEnded : false,
     color: '#ffffff',
     posX: 0,
     posY: 0,
@@ -137,7 +155,13 @@ const WebEditor = () => {
   };
 
   const addShape = () => {
-    const { width, height, depth, radius, color, posX, posY, posZ } = shapeSettings;
+    const { length, width, height, depth, radius, detail,
+      widthSegments, heightSegments, depthSegments, capSegments, radialSegments, tubularSegments,
+      radiusTop, radiusBottom,
+      thetaStart, thetaLength, 
+      phiStart, phiLength,
+      arc, tube, 
+      openEnded, color, posX, posY, posZ } = shapeSettings;
     let geometry;
     let material;
 
@@ -161,21 +185,21 @@ const WebEditor = () => {
     }
 
     switch (selectedShape) {
-      case 'box': geometry = new THREE.BoxGeometry(width, height, depth);
+      case 'box': geometry = new THREE.BoxGeometry(width, height, depth, widthSegments, heightSegments, depthSegments);
         break;
-      case 'capsule': geometry = new THREE.CapsuleGeometry(radius, depth, 16, 50);
+      case 'capsule': geometry = new THREE.CapsuleGeometry(radius, length, capSegments, radialSegments);
         break;
-      case 'cone': geometry = new THREE.ConeGeometry(radius, height, 32);
+      case 'cone': geometry = new THREE.ConeGeometry(radius, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength);
         break;
-      case 'cylinder': geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+      case 'cylinder': geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength);
         break;
-      case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(radius, 3);
+      case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(radius, detail);
         break;
-      case 'icosahedron': geometry = new THREE.IcosahedronGeometry(radius, 3);
+      case 'icosahedron': geometry = new THREE.IcosahedronGeometry(radius, detail);
         break;
-      case 'sphere': geometry = new THREE.SphereGeometry(radius, 32, 32);
+      case 'sphere': geometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength);
         break;
-      case 'torus': geometry = new THREE.TorusGeometry(radius, radius / 2, 16, 100);
+      case 'torus': geometry = new THREE.TorusGeometry(radius, tube, radialSegments, tubularSegments, arc);
         break;
       default: geometry = new THREE.BoxGeometry(1, 1, 1);
     }
@@ -219,7 +243,13 @@ const WebEditor = () => {
       obj.geometry.dispose(); // 기존 도형 제거
       obj.material.dispose(); // 기존 재질 제거
 
-      const { width, height, depth, radius, color, posX, posY, posZ } = shapeModifySettings;
+      const { length, width, height, depth, radius, detail,
+        widthSegments, heightSegments, depthSegments, capSegments, radialSegments, tubularSegments,
+        radiusTop, radiusBottom,
+        thetaStart, thetaLength, 
+        phiStart, phiLength,
+        arc, tube, 
+        openEnded, color, posX, posY, posZ } = shapeModifySettings;
       let material;
       let geometry;
 
@@ -243,23 +273,23 @@ const WebEditor = () => {
       }
 
       switch (selectedShape) {
-        case 'box': geometry = new THREE.BoxGeometry(width, height, depth);
-          break;
-        case 'capsule': geometry = new THREE.CapsuleGeometry(radius, depth, 16, 50);
-          break;
-        case 'cone': geometry = new THREE.ConeGeometry(radius, height, 32);
-          break;
-        case 'cylinder': geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
-          break;
-        case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(radius, 3);
-          break;
-        case 'icosahedron': geometry = new THREE.IcosahedronGeometry(radius, 3);
-          break;
-        case 'sphere': geometry = new THREE.SphereGeometry(radius, 32, 32);
-          break;
-        case 'torus': geometry = new THREE.TorusGeometry(radius, radius / 2, 16, 100);
-          break;
-        default: geometry = new THREE.BoxGeometry(1, 1, 1);
+        case 'box': geometry = new THREE.BoxGeometry(width, height, depth, widthSegments, heightSegments, depthSegments);
+        break;
+        case 'capsule': geometry = new THREE.CapsuleGeometry(radius, length, capSegments, radialSegments);
+        break;
+      case 'cone': geometry = new THREE.ConeGeometry(radius, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength);
+        break;
+      case 'cylinder': geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, openEnded, thetaStart, thetaLength);
+        break;
+      case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(radius, detail);
+        break;
+      case 'icosahedron': geometry = new THREE.IcosahedronGeometry(radius, detail);
+        break;
+      case 'sphere': geometry = new THREE.SphereGeometry(radius, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength);
+        break;
+      case 'torus': geometry = new THREE.TorusGeometry(radius, tube, radialSegments, tubularSegments, arc);
+        break;
+      default: geometry = new THREE.BoxGeometry(1, 1, 1);
       }
 
       obj.userData = {
@@ -378,36 +408,36 @@ const WebEditor = () => {
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)' }}>
                 <div>
                   <label>배경 색 변경 :</label>
-                  <input type="color" id="rendererBackgroundColor" value={sceneSettings.rendererBackgroundColor} onChange={handleChange} />
+                  <input type="color" id="rendererBackgroundColor" value={sceneSettings.rendererBackgroundColor} onChange={handleChange}/>
                 </div>
                 <br />
                 <div>
                   <label>Directional Light Color:</label>
-                  <input type="color" id="directionalLightColor" value={sceneSettings.directionalLightColor} onChange={handleChange} />
+                  <input type="color" id="directionalLightColor" value={sceneSettings.directionalLightColor} onChange={handleChange}/>
                   <label> Intensity :</label>
-                  <input type="range" id="directionalLightIntensity" min="0" max="5" step="0.01" value={sceneSettings.directionalLightIntensity} onChange={handleChange} />
+                  <input type="range" id="directionalLightIntensity" min="0" max="5" step="0.01" value={sceneSettings.directionalLightIntensity} onChange={handleChange}/>
                 </div>
                 <div>
                   <label>Ambient Light Color :</label>
                   <input type="color" id="ambientLightColor" value={sceneSettings.ambientLightColor} onChange={handleChange} />
                   <label> Intensity :</label>
-                  <input type="range" id="ambientLightIntensity" min="0" max="5" step="0.01" value={sceneSettings.ambientLightIntensity} onChange={handleChange} />
+                  <input type="range" id="ambientLightIntensity" min="0" max="5" step="0.01" value={sceneSettings.ambientLightIntensity} onChange={handleChange}/>
                 </div>
                 <div>
                   <label>Directional Light Position X :</label>
-                  <input type="range" id="directionalLightPosX" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosX} onChange={handleChange} />
+                  <input type="range" id="directionalLightPosX" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosX} onChange={handleChange}/>
                 </div>
                 <div>
                   <label>Directional Light Position Y :</label>
-                  <input type="range" id="directionalLightPosY" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosY} onChange={handleChange} />
+                  <input type="range" id="directionalLightPosY" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosY} onChange={handleChange}/>
                 </div>
                 <div>
                   <label>Directional Light Position Z :</label>
-                  <input type="range" id="directionalLightPosZ" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosZ} onChange={handleChange} />
+                  <input type="range" id="directionalLightPosZ" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosZ} onChange={handleChange}/>
                 </div>
                 <button onClick={resetControls} style={{ marginTop: '10px' }}>Reset Light</button>
               </div>
-              <br />
+              <br/>
 
               {editingIndex === null ? (
                 <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(73, 169, 61, 1)' }}>
@@ -439,28 +469,46 @@ const WebEditor = () => {
                   </div>
                   <div>
                     <label>도형 색상 :</label>
-                    <input type="color" id="color" value={shapeSettings.color} onChange={handleShapeChange} />
-                  </div><br />
+                    <input type="color" id="color" value={shapeSettings.color} onChange={handleShapeChange}/>
+                  </div><br/>
+                  {selectedShape === 'box' && 
                   <div>
-                    <label>가로 (Width):</label>
-                    <input type="number" id="width" value={shapeSettings.width} onChange={handleShapeChange} /><br />
-                    <label>세로 (Height):</label>
-                    <input type="number" id="height" value={shapeSettings.height} onChange={handleShapeChange} /><br />
-                    <label>깊이 (Depth):</label>
-                    <input type="number" id="depth" value={shapeSettings.depth} onChange={handleShapeChange} /><br />
+                  <label>가로 (Width):</label>
+                  <input type="number" id="width" value={shapeSettings.width} onChange={handleShapeChange}/><br/>
+                  <label>세로 (Height):</label>
+                  <input type="number" id="height" value={shapeSettings.height} onChange={handleShapeChange}/><br/>
+                  <label>깊이 (Depth):</label>
+                  <input type="number" id="depth" value={shapeSettings.depth} onChange={handleShapeChange}/><br/>
+                  <label title="x축으로 분할된 직사각형 면의 수">x축 세그먼트 수 (WidthSegments):</label>
+                  <input type="number" id="widthSegments" value={shapeSettings.widthSegments} onChange={handleShapeChange}/><br/>
+                  <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수 (HeightSegments):</label>
+                  <input type="number" id="heightSegments" value={shapeSettings.heightSegments} onChange={handleShapeChange}/><br/>
+                  <label title="z축으로 분할된 직사각형 면의 수">z축 세그먼트 수 (DepthSegments):</label>
+                  <input type="number" id="depthSegments" value={shapeSettings.depthSegments} onChange={handleShapeChange}/><br/>
                   </div>
+                  }
+                  {selectedShape === 'capsule' && 
                   <div>
-                    <label>반지름 (Radius):</label>
-                    <input type="number" id="radius" value={shapeSettings.radius} onChange={handleShapeChange} />
-                  </div><br />
+                  <label>반지름 (Radius):</label>
+                  <input type="number" id="radius" value={shapeSettings.radius} onChange={handleShapeChange}/><br/>
+                  <label>길이 (Length):</label>
+                  <input type="number" id="length" value={shapeSettings.length} onChange={handleShapeChange}/><br/>
+                  <label title="캡슐 머리 부분을 중심으로 나뉘는 직사각형 면의 수">캡슐 세그먼트 수 (CapSegments):</label>
+                  <input type="number" id="capSegments" value={shapeSettings.capSegments} onChange={handleShapeChange}/><br/>
+                  <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원통 세그먼트 수 (RadialSegments):</label>
+                  <input type="number" id="radialSegments" value={shapeSettings.radialSegments} onChange={handleShapeChange}/><br/>
+                  </div>
+                  }
+                  <br/>
+
                   <div>
                     <label>X : </label>
-                    <input style={{ width: "40px" }} type="number" id="posX" value={shapeSettings.posX} onChange={handleShapeChange} />
+                    <input style={{ width: "40px" }} type="number" id="posX" value={shapeSettings.posX} onChange={handleShapeChange}/>
                     <label> Y : </label>
-                    <input style={{ width: "40px" }} type="number" id="posY" value={shapeSettings.posY} onChange={handleShapeChange} />
+                    <input style={{ width: "40px" }} type="number" id="posY" value={shapeSettings.posY} onChange={handleShapeChange}/>
                     <label> Z : </label>
-                    <input style={{ width: "40px" }} type="number" id="posZ" value={shapeSettings.posZ} onChange={handleShapeChange} />
-                  </div><br />
+                    <input style={{ width: "40px" }} type="number" id="posZ" value={shapeSettings.posZ} onChange={handleShapeChange}/>
+                  </div><br/>
                   <button onClick={addShape}>도형 추가</button>
                 </div>
               ) : (
@@ -480,27 +528,27 @@ const WebEditor = () => {
                   </div>
                   <div>
                     <label>도형 색상 (Color):</label>
-                    <input type="color" id="color" value={shapeModifySettings.color} onChange={handleShapeModifyChange} />
-                  </div><br />
+                    <input type="color" id="color" value={shapeModifySettings.color} onChange={handleShapeModifyChange}/>
+                  </div><br/>
                   <div>
                     <label>가로 (Width):</label>
-                    <input type="number" id="width" value={shapeModifySettings.width} onChange={handleShapeModifyChange} /><br />
+                    <input type="number" id="width" value={shapeModifySettings.width} onChange={handleShapeModifyChange}/><br/>
                     <label>세로 (Height):</label>
-                    <input type="number" id="height" value={shapeModifySettings.height} onChange={handleShapeModifyChange} /><br />
+                    <input type="number" id="height" value={shapeModifySettings.height} onChange={handleShapeModifyChange}/><br/>
                     <label>깊이 (Depth):</label>
-                    <input type="number" id="depth" value={shapeModifySettings.depth} onChange={handleShapeModifyChange} /><br />
-                  </div><br />
+                    <input type="number" id="depth" value={shapeModifySettings.depth} onChange={handleShapeModifyChange}/><br/>
+                  </div><br/>
                   <div>
                     <label>X : </label>
-                    <input style={{ width: "40px" }} type="number" id="posX" value={shapeModifySettings.posX} onChange={handleShapeModifyChange} />
+                    <input style={{ width: "40px" }} type="number" id="posX" value={shapeModifySettings.posX} onChange={handleShapeModifyChange}/>
                     <label>Y : </label>
-                    <input style={{ width: "40px" }} type="number" id="posY" value={shapeModifySettings.posY} onChange={handleShapeModifyChange} />
+                    <input style={{ width: "40px" }} type="number" id="posY" value={shapeModifySettings.posY} onChange={handleShapeModifyChange}/>
                     <label>Z : </label>
-                    <input style={{ width: "40px" }} type="number" id="posZ" value={shapeModifySettings.posZ} onChange={handleShapeModifyChange} />
-                  </div><br />
+                    <input style={{ width: "40px" }} type="number" id="posZ" value={shapeModifySettings.posZ} onChange={handleShapeModifyChange}/>
+                  </div><br/>
                   <button onClick={applyChanges}>적용</button><button onClick={turnOff}>수정 취소</button>
                 </div>
-              )}<br />
+              )}<br/>
 
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)', maxHeight: '300px', overflowY: 'auto' }}>
                 <h3>추가된 도형 목록</h3>
