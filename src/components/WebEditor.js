@@ -388,6 +388,46 @@ const WebEditor = () => {
     setGuiTrue(!guiTrue);
   }
 
+  /*
+  <input
+        type="number"
+        value={shapeSettings.depthSegments}
+        onChange={(e) => setShapeSettings(prev => ({ ...prev, depthSegments: Number(e.target.value) }))}
+      />
+
+  <input
+        type="number"
+        value={shapeSettings.depthSegments}
+        onChange={(e) => setShapeSettings(prev => ({ ...prev, depthSegments: parseFloat(e.target.value) }))}
+      />
+
+  parseInt(e.target.value, 10) // 10진수 변환
+
+  <input
+  type="number"
+  value={shapeSettings.depthSegments}
+  onChange={(e) => {
+    const value = parseInt(e.target.value, 10);
+    if (value > 0) {
+      setShapeSettings(prev => ({ ...prev, depthSegments: value }));
+    }
+  }}
+/>
+
+<input
+  type="number"
+  value={shapeSettings.depthSegments}
+  min={1}  // 최소값 설정
+  max={100}  // 최대값 설정
+  onChange={(e) => {
+    let value = parseInt(e.target.value, 10);
+    if (value < 1 || value > 100 || isNaN(value)) {
+      value = 1;  // 값이 범위를 벗어나거나 잘못된 경우 1로 설정
+    }
+    setShapeSettings(prev => ({ ...prev, depthSegments: value }));
+  }}
+/>
+  */
   return (
     <div>
       <div className="ThreeD-div-webEditor" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
