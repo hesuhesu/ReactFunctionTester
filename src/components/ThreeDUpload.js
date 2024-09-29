@@ -6,7 +6,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import "../css/Three.css";
 
-const Three = () => {
+const ThreeDUpload = () => {
   const canvasRef = useRef();
   const [true1, setTrue1] = useState(false);
 
@@ -347,4 +347,4 @@ const Three = () => {
   )
 }
 
-export default Three;
+export default ThreeDUpload;
