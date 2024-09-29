@@ -27,7 +27,7 @@ const WebEditor = () => {
     radiusTop: 1, radiusBottom: 1,
     thetaStart: 0, thetaLength: 2 * Math.PI,
     phiStart: 0, phiLength: 2 * Math.PI,
-    tube: 0.4, arc: 2 * Math.PI,
+    tube: 0.4, arc: 2 * Math.PI, p: 2, q: 3,
     color: '#ffffff',
     posX: 0, posY: 0, posZ: 0,
   });
@@ -38,12 +38,14 @@ const WebEditor = () => {
     radiusTop: 1, radiusBottom: 1,
     thetaStart: 0, thetaLength: 2 * Math.PI,
     phiStart: 0, phiLength: 2 * Math.PI,
-    tube: 0.4, arc: 2 * Math.PI,
+    tube: 0.4, arc: 2 * Math.PI, p: 2, q: 3,
     color: '#ffffff',
     posX: 0, posY: 0, posZ: 0,
   });
 
   const [editingIndex, setEditingIndex] = useState(null); // 수정 중인 도형의 인덱스
+
+  // transformcontrol 참조
 
   useEffect(() => {
     const scene = new THREE.Scene();
@@ -121,7 +123,7 @@ const WebEditor = () => {
       radiusTop, radiusBottom,
       thetaStart, thetaLength,
       phiStart, phiLength,
-      arc, tube, color,
+      arc, tube, p, q, color,
       posX, posY, posZ } = shapeSettings;
     let geometry;
     let material;
@@ -154,6 +156,8 @@ const WebEditor = () => {
         break;
       case 'cylinder': geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, false, thetaStart, thetaLength);
         break;
+      case 'tetrahydron': geometry = new THREE.TetrahedronGeometry(radius, detail);
+        break;
       case 'octahedron': geometry = new THREE.OctahedronGeometry(radius, detail);
         break;
       case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(radius, detail);
@@ -164,8 +168,16 @@ const WebEditor = () => {
         break;
       case 'torus': geometry = new THREE.TorusGeometry(radius, tube, radialSegments, tubularSegments, arc);
         break;
+      case 'torusknot': geometry = new THREE.TorusKnotGeometry(radius, tube, tubularSegments, radialSegments, p, q);
+        break;
       default: geometry = new THREE.BoxGeometry(1, 1, 1);
     }
+    /*
+    const wireFrame = new THREE.WireframeGeometry(geometry);
+    const lineFrame = new THREE.LineSegments(wireFrame);
+    lineFrame.material.color = new THREE.Color(0xff0000);
+    lineFrame.position.set(posX, posY, posZ);
+    */
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(posX, posY, posZ);
@@ -175,12 +187,18 @@ const WebEditor = () => {
       radiusTop, radiusBottom,
       thetaStart, thetaLength,
       phiStart, phiLength,
-      arc, tube, color,
+      arc, tube, p, q, color,
       shape: selectedShape,
       material: selectedMaterial
     };
 
-    sceneRef.current.add(mesh);
+    /*
+    const group = new THREE.Group();
+    group.add(mesh);
+    group.add(wireFrame);
+    */
+
+    sceneRef.current.add(mesh); // group
     setObjects((prevObjects) => [...prevObjects, mesh]);
   };
 
@@ -192,7 +210,7 @@ const WebEditor = () => {
       radiusTop: obj.userData.radiusTop, radiusBottom: obj.userData.radiusBottom,
       thetaStart: obj.userData.thetaStart, thetaLength: obj.userData.thetaLength,
       phiStart: obj.userData.phiStart, phiLength: obj.userData.phiLength,
-      arc: obj.userData.arc, tube: obj.userData.tube,
+      arc: obj.userData.arc, tube: obj.userData.tube, p: obj.userData.p, q: obj.userData.q,
       color: `#${obj.material.color.getHexString()}`,
       posX: obj.position.x,
       posY: obj.position.y,
@@ -214,7 +232,7 @@ const WebEditor = () => {
         radiusTop, radiusBottom,
         thetaStart, thetaLength,
         phiStart, phiLength,
-        arc, tube, color,
+        arc, tube, p, q, color,
         posX, posY, posZ } = shapeModifySettings;
       let material;
       let geometry;
@@ -247,6 +265,8 @@ const WebEditor = () => {
           break;
         case 'cylinder': geometry = new THREE.CylinderGeometry(radiusTop, radiusBottom, height, radialSegments, heightSegments, false, thetaStart, thetaLength);
           break;
+        case 'tetrahydron': geometry = new THREE.TetrahedronGeometry(radius, detail);
+          break;
         case 'octahedron': geometry = new THREE.OctahedronGeometry(radius, detail);
           break;
         case 'dodecahedron': geometry = new THREE.DodecahedronGeometry(radius, detail);
@@ -257,6 +277,8 @@ const WebEditor = () => {
           break;
         case 'torus': geometry = new THREE.TorusGeometry(radius, tube, radialSegments, tubularSegments, arc);
           break;
+        case 'torusknot': geometry = new THREE.TorusKnotGeometry(radius, tube, tubularSegments, radialSegments, p, q);
+          break;
         default: geometry = new THREE.BoxGeometry(1, 1, 1);
       }
 
@@ -266,7 +288,7 @@ const WebEditor = () => {
         radiusTop, radiusBottom,
         thetaStart, thetaLength,
         phiStart, phiLength,
-        arc, tube, color,
+        arc, tube, p, q, color,
         shape: selectedShape,
         material: selectedMaterial
       };
@@ -419,11 +441,13 @@ const WebEditor = () => {
                       <option value="capsule">캡슐</option>
                       <option value="cone">원뿔</option>
                       <option value="cylinder">원통</option>
+                      <option value="tetrahydron">4면체</option>
                       <option value="octahedron">8면체</option>
                       <option value="dodecahedron">12면체</option>
                       <option value="icosahedron">20면체</option>
                       <option value="sphere">구</option>
                       <option value="torus">Torus</option>
+                      <option value="torusknot">TorusKnot</option>
                     </select>
                   </div>
                   <div>
@@ -451,11 +475,11 @@ const WebEditor = () => {
                       <label>깊이(Depth):</label>
                       <input type="number" id="depth" value={shapeSettings.depth} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, depth: parseFloat(e.target.value) })); }} /><br />
                       <label title="x축으로 분할된 직사각형 면의 수">x축 세그먼트 수(WidthSegments):</label>
-                      <input type="number" id="widthSegments" value={shapeSettings.widthSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="widthsegments" value={shapeSettings.widthSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수(HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeSettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeSettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="z축으로 분할된 직사각형 면의 수">z축 세그먼트 수(DepthSegments):</label>
-                      <input type="number" id="depthSegments" value={shapeSettings.depthSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, depthSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="depthsegments" value={shapeSettings.depthSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, depthSegments: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
                   {selectedShape === 'capsule' &&
@@ -465,9 +489,9 @@ const WebEditor = () => {
                       <label>길이(Length):</label>
                       <input type="number" id="length" value={shapeSettings.length} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, length: parseFloat(e.target.value) })); }} /><br />
                       <label title="캡슐 머리 부분을 중심으로 나뉘는 직사각형 면의 수">캡슐 세그먼트 수(CapSegments):</label>
-                      <input type="number" id="capSegments" value={shapeSettings.capSegments} min={1} onChange={(e) => { setShapeSettings(prev => ({ ...prev, capSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="capsegments" value={shapeSettings.capSegments} min={1} onChange={(e) => { setShapeSettings(prev => ({ ...prev, capSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원형 세그먼트 수(RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeSettings.radialSegments} min={1} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeSettings.radialSegments} min={1} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
                   {selectedShape === 'cone' &&
@@ -477,35 +501,43 @@ const WebEditor = () => {
                       <label>세로(Height):</label>
                       <input type="number" id="height" value={shapeSettings.height} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, height: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원형 세그먼트 수(RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeSettings.radialSegments} min={3} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeSettings.radialSegments} min={3} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수(HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeSettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeSettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="원뿔 회전 각">원뿔 위치 회전(ThetaStart):</label>
-                      <input type="number" id="thetaStart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="thetastart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
-                      <input type="number" id="thetaLength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="thetalength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'cylinder' &&
                     <div>
                       <label>원통 윗부분(RadiusTop):</label>
-                      <input type="number" id="radiusTop" value={shapeSettings.radiusTop} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radiusTop: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="radiustop" value={shapeSettings.radiusTop} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radiusTop: parseFloat(e.target.value) })); }} /><br />
                       <label>원통 윗부분(RadiusBottom):</label>
-                      <input type="number" id="radiusBottom" value={shapeSettings.radiusBottom} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radiusButtom: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="radiusbottom" value={shapeSettings.radiusBottom} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radiusButtom: parseFloat(e.target.value) })); }} /><br />
                       <label>세로 (Height):</label>
                       <input type="number" id="height" value={shapeSettings.height} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, height: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원형 세그먼트 수(RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeSettings.radialSegments} min={3} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeSettings.radialSegments} min={3} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수(HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeSettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeSettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="원뿔 회전 각">원뿔 위치 회전(ThetaStart):</label>
-                      <input type="number" id="thetaStart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="thetastart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
-                      <input type="number" id="thetaLength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="thetalength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                    </div>
+                  }
+                  {selectedShape === 'tetrahydron' &&
+                    <div>
+                      <label>반지름(Radius):</label>
+                      <input type="number" id="radius" value={shapeSettings.radius} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radius: parseFloat(e.target.value) })); }} /><br />
+                      <label title="4면체 입니다. 0보다 커진다면 원형에 가까워집니다. 4면체의 기본값은 0입니다.">복잡도(Detail)</label>
+                      <input type="number" id="detail" value={shapeSettings.detail} min={0} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, detail: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
                   {selectedShape === 'octahedron' &&
@@ -537,21 +569,21 @@ const WebEditor = () => {
                       <label>반지름(Radius):</label>
                       <input type="number" id="radius" value={shapeSettings.radius} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radius: parseFloat(e.target.value) })); }} /><br />
                       <label title="x축에서 보이는 변의 수">x축 세그먼트 수(WidthSegments):</label>
-                      <input type="number" id="widthSegments" value={shapeSettings.widthSegments} min={2} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="widthsegments" value={shapeSettings.widthSegments} min={2} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축에서 보이는 변의 수">y축 세그먼트 수(HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeSettings.heightSegments} min={3} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeSettings.heightSegments} min={3} max={100} onChange={(e) => { setShapeSettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="">구형 중점 회전(PhiStart):</label>
-                      <input type="number" id="phiStart" value={shapeSettings.phiStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, phiStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="phistart" value={shapeSettings.phiStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, phiStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="">구형 중심 구현(PhiLength):</label>
-                      <input type="number" id="phiLength" value={shapeSettings.phiLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, phiLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('phiLength').value = Math.PI; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('phiLength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI * 2}));}}>Math.PI * 2 변경</button><br />
+                      <input type="number" id="philength" value={shapeSettings.phiLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, phiLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('philength').value = Math.PI; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('philength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button><br />
                       <label title="원뿔 회전 각">점 중심 회전(ThetaStart):</label>
-                      <input type="number" id="thetaStart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="thetastart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">점 중심 구현(ThetaLength):</label>
-                      <input type="number" id="thetaLength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="thetalength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'torus' &&
@@ -561,13 +593,29 @@ const WebEditor = () => {
                       <label title="torus 를 감싸는 튜브의 두께">튜브(Tube):</label>
                       <input type="number" id="tube" value={shapeSettings.tube} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, tube: parseFloat(e.target.value) })); }} /><br />
                       <label title="튜브의 정점 조절. 숫자가 커질수록 원형에 가까워짐">원형 세그먼트 수(RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeSettings.radialSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeSettings.radialSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="튜브의 구간 개수 조절. 숫자가 커질수록 구간 별로 촘촘해짐">튜브 세그먼트 수(TubularSegments):</label>
-                      <input type="number" id="tubularSegments" value={shapeSettings.tubularSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="tubularsegments" value={shapeSettings.tubularSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="torus 가 생성되는 회전 각">Torus 생성 각(Arc):</label>
                       <input type="number" id="arc" value={shapeSettings.arc} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, arc: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('arc').value = Math.PI; setShapeSettings(prev => ({ ...prev, arc: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, arc: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <button onClick={() => { document.getElementById('arc').value = Math.PI; setShapeSettings(prev => ({ ...prev, arc: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, arc: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                    </div>
+                  }
+                  {selectedShape === 'torusknot' &&
+                    <div>
+                      <label>반지름(Radius):</label>
+                      <input type="number" id="radius" value={shapeSettings.radius} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radius: parseFloat(e.target.value) })); }} /><br />
+                      <label title="torus 를 감싸는 튜브의 두께">튜브(Tube):</label>
+                      <input type="number" id="tube" value={shapeSettings.tube} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, tube: parseFloat(e.target.value) })); }} /><br />
+                      <label title="튜브의 구간 개수 조절. 숫자가 커질수록 구간 별로 촘촘해짐">튜브 세그먼트 수(TubularSegments):</label>
+                      <input type="number" id="tubularsegments" value={shapeSettings.tubularSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <label title="튜브의 정점 조절. 숫자가 커질수록 원형에 가까워짐">원형 세그먼트 수(RadialSegments):</label>
+                      <input type="number" id="radialsegments" value={shapeSettings.radialSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <label title="기하학적 회전 대칭 축 감김 정도">(P)</label>
+                      <input type="number" id="p" value={shapeSettings.p} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, p: parseInt(e.target.value, 10) })); }} /><br />
+                      <label title="torus 내부 원을 감은 정도">(Q)</label>
+                      <input type="number" id="q" value={shapeSettings.q} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, q: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }<br />
                   <div>
@@ -608,11 +656,11 @@ const WebEditor = () => {
                       <label>깊이 (Depth):</label>
                       <input type="number" id="depth" value={shapeModifySettings.depth} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, depth: parseFloat(e.target.value) })); }} /><br />
                       <label title="x축으로 분할된 직사각형 면의 수">x축 세그먼트 수 (WidthSegments):</label>
-                      <input type="number" id="widthSegments" value={shapeModifySettings.widthSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="widthsegments" value={shapeModifySettings.widthSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수 (HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeModifySettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeModifySettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="z축으로 분할된 직사각형 면의 수">z축 세그먼트 수 (DepthSegments):</label>
-                      <input type="number" id="depthSegments" value={shapeModifySettings.depthSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, depthSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="depthsegments" value={shapeModifySettings.depthSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, depthSegments: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
                   {selectedShape === 'capsule' &&
@@ -622,9 +670,9 @@ const WebEditor = () => {
                       <label>길이 (Length):</label>
                       <input type="number" id="length" value={shapeModifySettings.length} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, length: parseFloat(e.target.value) })); }} /><br />
                       <label title="캡슐 머리 부분을 중심으로 나뉘는 직사각형 면의 수">캡슐 세그먼트 수 (CapSegments):</label>
-                      <input type="number" id="capSegments" value={shapeModifySettings.capSegments} min={1} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, capSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="capsegments" value={shapeModifySettings.capSegments} min={1} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, capSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원통 세그먼트 수 (RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeModifySettings.radialSegments} min={1} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeModifySettings.radialSegments} min={1} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
                   {selectedShape === 'cone' &&
@@ -634,35 +682,43 @@ const WebEditor = () => {
                       <label>세로 (Height):</label>
                       <input type="number" id="height" value={shapeModifySettings.height} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, height: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원형 세그먼트 수 (RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeModifySettings.radialSegments} min={3} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeModifySettings.radialSegments} min={3} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수 (HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeModifySettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeModifySettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="원뿔 회전 각">원뿔 위치 회전(ThetaStart):</label>
-                      <input type="number" id="thetaStart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="thetastart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label><button></button>
-                      <input type="number" id="thetaLength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="thetalength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'cylinder' &&
                     <div>
                       <label>원통 윗부분(RadiusTop):</label>
-                      <input type="number" id="radiusTop" value={shapeModifySettings.radiusTop} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radiusTop: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="radiustop" value={shapeModifySettings.radiusTop} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radiusTop: parseFloat(e.target.value) })); }} /><br />
                       <label>원통 윗부분(RadiusBottom):</label>
-                      <input type="number" id="radiusBottom" value={shapeModifySettings.radiusBottom} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radiusButtom: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="radiusbottom" value={shapeModifySettings.radiusBottom} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radiusButtom: parseFloat(e.target.value) })); }} /><br />
                       <label>세로 (Height):</label>
                       <input type="number" id="height" value={shapeModifySettings.height} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, height: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형을 중심으로 나뉘는 직사각형 면의 수">원형 세그먼트 수 (RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeModifySettings.radialSegments} min={3} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeModifySettings.radialSegments} min={3} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축으로 분할된 직사각형 면의 수">y축 세그먼트 수 (HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeModifySettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeModifySettings.heightSegments} min={1} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="원뿔 회전 각">원뿔 위치 회전(ThetaStart):</label>
-                      <input type="number" id="thetaStart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="thetastart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
-                      <input type="number" id="thetaLength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="thetalength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                    </div>
+                  }
+                  {selectedShape === 'tetrahydron' &&
+                    <div>
+                      <label>반지름(Radius):</label>
+                      <input type="number" id="radius" value={shapeModifySettings.radius} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radius: parseFloat(e.target.value) })); }} /><br />
+                      <label title="4면체 입니다. 0보다 커진다면 원형에 가까워집니다. 4면체의 기본값은 0입니다.">복잡도(Detail)</label>
+                      <input type="number" id="detail" value={shapeModifySettings.detail} min={0} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, detail: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
                   {selectedShape === 'octahedron' &&
@@ -694,21 +750,21 @@ const WebEditor = () => {
                       <label>반지름(Radius):</label>
                       <input type="number" id="radius" value={shapeModifySettings.radius} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radius: parseFloat(e.target.value) })); }} /><br />
                       <label title="x축에서 보이는 변의 수">x축 세그먼트 수(WidthSegments):</label>
-                      <input type="number" id="widthSegments" value={shapeModifySettings.widthSegments} min={2} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="widthsegments" value={shapeModifySettings.widthSegments} min={2} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, widthSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="y축에서 보이는 변의 수">y축 세그먼트 수(HeightSegments):</label>
-                      <input type="number" id="heightSegments" value={shapeModifySettings.heightSegments} min={3} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="heightsegments" value={shapeModifySettings.heightSegments} min={3} max={100} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, heightSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="">구형 중점 회전(PhiStart):</label>
-                      <input type="number" id="phiStart" value={shapeModifySettings.phiStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, phiStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="phistart" value={shapeModifySettings.phiStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, phiStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="">구형 중심 구현(PhiLength):</label>
-                      <input type="number" id="phiLength" value={shapeModifySettings.phiLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, phiLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('phiLength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('phiLength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="philength" value={shapeModifySettings.phiLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, phiLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('philength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('philength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                       <label title="원뿔 회전 각">점 중심 회전(ThetaStart):</label>
-                      <input type="number" id="thetaStart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
+                      <input type="number" id="thetastart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">점 중심 구현(ThetaLength):</label>
-                      <input type="number" id="thetaLength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('thetaLength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <input type="number" id="thetalength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'torus' &&
@@ -718,13 +774,29 @@ const WebEditor = () => {
                       <label title="torus 를 감싸는 튜브의 두께">튜브(Tube):</label>
                       <input type="number" id="tube" value={shapeModifySettings.tube} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, tube: parseFloat(e.target.value) })); }} /><br />
                       <label title="튜브의 정점 조절. 숫자가 커질수록 원형에 가까워짐">원형 세그먼트 수(RadialSegments):</label>
-                      <input type="number" id="radialSegments" value={shapeModifySettings.radialSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="radialsegments" value={shapeModifySettings.radialSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="튜브의 구간 개수 조절. 숫자가 커질수록 구간 별로 촘촘해짐">튜브 세그먼트 수(TubularSegments):</label>
-                      <input type="number" id="tubularSegments" value={shapeModifySettings.tubularSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <input type="number" id="tubularsegments" value={shapeModifySettings.tubularSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="torus 가 생성되는 회전 각">Torus 생성 각(Arc):</label>
                       <input type="number" id="arc" value={shapeModifySettings.arc} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, arc: parseFloat(e.target.value) })); }} /><br />
-                      <button onClick={() => { document.getElementById('arc').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI }));}}>Math.PI 변경</button>
-                      <button onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI * 2}));}}>Math.PI * 2 변경</button>
+                      <button onClick={() => { document.getElementById('arc').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI })); }}>Math.PI 변경</button>
+                      <button onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                    </div>
+                  }
+                  {selectedShape === 'torusknot' &&
+                    <div>
+                      <label>반지름(Radius):</label>
+                      <input type="number" id="radius" value={shapeModifySettings.radius} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radius: parseFloat(e.target.value) })); }} /><br />
+                      <label title="torus 를 감싸는 튜브의 두께">튜브(Tube):</label>
+                      <input type="number" id="tube" value={shapeModifySettings.tube} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, tube: parseFloat(e.target.value) })); }} /><br />
+                      <label title="튜브의 구간 개수 조절. 숫자가 커질수록 구간 별로 촘촘해짐">튜브 세그먼트 수(TubularSegments):</label>
+                      <input type="number" id="tubularsegments" value={shapeModifySettings.tubularSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <label title="튜브의 정점 조절. 숫자가 커질수록 원형에 가까워짐">원형 세그먼트 수(RadialSegments):</label>
+                      <input type="number" id="radialsegments" value={shapeModifySettings.radialSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, radialSegments: parseInt(e.target.value, 10) })); }} /><br />
+                      <label title="기하학적 회전 대칭 축 감김 정도">(P)</label>
+                      <input type="number" id="p" value={shapeModifySettings.p} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, p: parseInt(e.target.value, 10) })); }} /><br />
+                      <label title="torus 내부 원을 감은 정도">(Q)</label>
+                      <input type="number" id="q" value={shapeModifySettings.q} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, q: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }<br />
                   <div>
