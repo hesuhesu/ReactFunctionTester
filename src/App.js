@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Three from "./components/Three";
+import ThreeDUpload from "./components/ThreeDUpload";
 import WebEditor from "./components/WebEditor";
 
 function App() {
@@ -8,7 +8,7 @@ function App() {
 
   return (
     <div>
-      <Three/>
+      <ThreeDUpload/>
       {true1 ? <><button onClick={handleTrue}>WebEditor 삭제</button><WebEditor/></> : <button onClick={handleTrue}>WebEditor 생성</button>}
     </div>
   );
