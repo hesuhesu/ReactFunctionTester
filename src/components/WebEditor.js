@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 
 const WebEditor = () => {
   const canvasRef = useRef();
@@ -13,6 +14,12 @@ const WebEditor = () => {
   const axesHelperRef = useRef();
   const ambientLightRef = useRef();
   const directionalLightRef = useRef();
+  const raycasterRef = useRef(new THREE.Raycaster());
+  const mouseRef = useRef(new THREE.Vector2());
+  const transformControlsRef = useRef(); // TransformControls 참조
+  const [selectedObject, setSelectedObject] = useState(null); // 선택된 객체
+  const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
+
   const [guiTrue, setGuiTrue] = useState(true);
   const [objects, setObjects] = useState([]);
   const [selectedShape, setSelectedShape] = useState('box');
@@ -71,6 +78,36 @@ const WebEditor = () => {
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
 
+    const transformControls = new TransformControls(camera, renderer.domElement);
+    transformControlsRef.current = transformControls;
+    scene.add(transformControls);
+
+    // TransformControls 이벤트 리스너: 드래그 중에 OrbitControls 비활성화
+    transformControls.addEventListener('dragging-changed', function (event) {
+      controls.enabled = !event.value;
+    });
+
+    const handleKeyDown = (event) => {
+      switch (event.key) {
+        case 'a':
+          setCurrentMode('translate');
+          transformControls.setMode('translate');
+          break;
+        case 's':
+          setCurrentMode('rotate');
+          transformControls.setMode('rotate');
+          break;
+        case 'd':
+          setCurrentMode('scale');
+          transformControls.setMode('scale');
+          break;
+        default:
+          break;
+      }
+    };
+    // 키 다운 이벤트 리스너 등록
+    window.addEventListener('keydown', handleKeyDown);
+
     const axesHelper = new THREE.AxesHelper(50);
     scene.add(axesHelper);
 
@@ -94,11 +131,43 @@ const WebEditor = () => {
     animate();
 
     return () => {
+      window.removeEventListener('keydown', handleKeyDown);
       renderer.dispose();
       scene.clear();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 마우스 클릭으로 객체 선택 및 TransformControls 적용
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    const handleMouseClick = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(objects);
+
+      if (intersects.length > 0) {
+        const intersectedObject = intersects[0].object;
+        setSelectedObject(intersectedObject);
+        transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
+      } else {
+        // 빈 공간 클릭 시 TransformControls을 해제
+        if (transformControlsRef.current.object) {
+          transformControlsRef.current.detach(); // TransformControls 해제
+        }
+        setSelectedObject(null);
+      }
+    };
+    canvas.addEventListener('click', handleMouseClick);
+
+    return () => {
+      canvas.removeEventListener('click', handleMouseClick);
+    };
+  }, [objects]);
 
   useEffect(() => {
     if (rendererRef.current) { rendererRef.current.setClearColor(sceneSettings.rendererBackgroundColor, 1); }
@@ -176,12 +245,6 @@ const WebEditor = () => {
         break;
       default: geometry = new THREE.BoxGeometry(1, 1, 1);
     }
-    /*
-    const wireFrame = new THREE.WireframeGeometry(geometry);
-    const lineFrame = new THREE.LineSegments(wireFrame);
-    lineFrame.material.color = new THREE.Color(0xff0000);
-    lineFrame.position.set(posX, posY, posZ);
-    */
 
     const mesh = new THREE.Mesh(geometry, material);
     mesh.position.set(posX, posY, posZ);
@@ -195,12 +258,6 @@ const WebEditor = () => {
       shape: selectedShape,
       material: selectedMaterial
     };
-
-    /*
-    const group = new THREE.Group();
-    group.add(mesh);
-    group.add(wireFrame);
-    */
 
     sceneRef.current.add(mesh); // group
     setObjects((prevObjects) => [...prevObjects, mesh]);
@@ -311,6 +368,10 @@ const WebEditor = () => {
   const removeShape = (index) => {
     const updatedObjects = [...objects];
     const objToRemove = updatedObjects[index];
+    // TransformControls에서 해당 객체 제거 (detach)
+    if (transformControlsRef.current.object) {
+      transformControlsRef.current.detach();
+    }
     sceneRef.current.remove(objToRemove);
     setObjects(updatedObjects.filter((_, i) => i !== index));
     setEditingIndex(null);
@@ -394,6 +455,10 @@ const WebEditor = () => {
     if (axesHelperRef.current) {
       scene.remove(axesHelperRef.current);
     }
+    // TransformControls에서 해당 객체 제거 (detach)
+    if (transformControlsRef.current.object) {
+      transformControlsRef.current.detach();
+    }
 
     // Export the scene using GLTFExporter
     const exporter = new GLTFExporter();
@@ -427,7 +492,7 @@ const WebEditor = () => {
             overflowY: 'auto',
             overflowX: 'hidden'
           }}>
-            {guiTrue ? <><button type = "button" onClick={guiTurn} style={{ marginBottom: '10px' }}>GUI Close</button><button type = "button" onClick={saveScene} >Scene 저장하기</button>
+            {guiTrue ? <><button type="button" onClick={guiTurn} style={{ marginBottom: '10px' }}>GUI Close</button><button type="button" onClick={saveScene} >Scene 저장하기</button>
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)' }}>
                 <div>
                   <label>배경 색 변경 </label>
@@ -458,7 +523,7 @@ const WebEditor = () => {
                   <label>Directional Light Position Z :</label>
                   <input type="range" id="directionalLightPosZ" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosZ} onChange={handleChange} />
                 </div>
-                <button type = "button" onClick={resetControls} style={{ marginTop: '10px' }}>Reset Light</button>
+                <button type="button" onClick={resetControls} style={{ marginTop: '10px' }}>Reset Light</button>
               </div>
               <br />
 
@@ -539,8 +604,8 @@ const WebEditor = () => {
                       <input type="number" id="thetastart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
                       <input type="number" id="thetalength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'cylinder' &&
@@ -559,8 +624,8 @@ const WebEditor = () => {
                       <input type="number" id="thetastart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
                       <input type="number" id="thetalength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'tetrahydron' &&
@@ -607,14 +672,14 @@ const WebEditor = () => {
                       <input type="number" id="phistart" value={shapeSettings.phiStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, phiStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="">구형 중심 구현(PhiLength):</label>
                       <input type="number" id="philength" value={shapeSettings.phiLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, phiLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('philength').value = Math.PI; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('philength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button><br />
+                      <button type="button" onClick={() => { document.getElementById('philength').value = Math.PI; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('philength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, phiLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button><br />
                       <label title="원뿔 회전 각">점 중심 회전(ThetaStart):</label>
                       <input type="number" id="thetastart" value={shapeSettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">점 중심 구현(ThetaLength):</label>
                       <input type="number" id="thetalength" value={shapeSettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'torus' &&
@@ -629,8 +694,8 @@ const WebEditor = () => {
                       <input type="number" id="tubularsegments" value={shapeSettings.tubularSegments} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="torus 가 생성되는 회전 각">Torus 생성 각(Arc):</label>
                       <input type="number" id="arc" value={shapeSettings.arc} min={0} max={Math.PI * 2} onChange={(e) => { setShapeSettings(prev => ({ ...prev, arc: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('arc').value = Math.PI; setShapeSettings(prev => ({ ...prev, arc: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, arc: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('arc').value = Math.PI; setShapeSettings(prev => ({ ...prev, arc: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeSettings(prev => ({ ...prev, arc: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'torusknot' &&
@@ -657,7 +722,7 @@ const WebEditor = () => {
                     <label> Z : </label>
                     <input style={{ width: "40px" }} type="number" id="posZ" value={shapeSettings.posZ} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
                   </div><br />
-                  <button type = "button" onClick={addShape}>도형 추가</button>
+                  <button type="button" onClick={addShape}>도형 추가</button>
                 </div>
               ) : (
                 <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(205, 103, 24, 1)' }}>
@@ -720,8 +785,8 @@ const WebEditor = () => {
                       <input type="number" id="thetastart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
                       <input type="number" id="thetalength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'cylinder' &&
@@ -740,8 +805,8 @@ const WebEditor = () => {
                       <input type="number" id="thetastart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">원뿔 중심 각(ThetaLength):</label>
                       <input type="number" id="thetalength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'tetrahydron' &&
@@ -788,14 +853,14 @@ const WebEditor = () => {
                       <input type="number" id="phistart" value={shapeModifySettings.phiStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, phiStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="">구형 중심 구현(PhiLength):</label>
                       <input type="number" id="philength" value={shapeModifySettings.phiLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, phiLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('philength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('philength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button><br />
+                      <button type="button" onClick={() => { document.getElementById('philength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('philength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, phiLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button><br />
                       <label title="원뿔 회전 각">점 중심 회전(ThetaStart):</label>
                       <input type="number" id="thetastart" value={shapeModifySettings.thetaStart} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaStart: parseFloat(e.target.value) })); }} /><br />
                       <label title="원형 섹터의 중심 각">점 중심 구현(ThetaLength):</label>
                       <input type="number" id="thetalength" value={shapeModifySettings.thetaLength} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, thetaLength: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('thetalength').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, thetaLength: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'torus' &&
@@ -810,8 +875,8 @@ const WebEditor = () => {
                       <input type="number" id="tubularsegments" value={shapeModifySettings.tubularSegments} min={0} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, tubularSegments: parseInt(e.target.value, 10) })); }} /><br />
                       <label title="torus 가 생성되는 회전 각">Torus 생성 각(Arc):</label>
                       <input type="number" id="arc" value={shapeModifySettings.arc} min={0} max={Math.PI * 2} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, arc: parseFloat(e.target.value) })); }} /><br />
-                      <button type = "button" onClick={() => { document.getElementById('arc').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI })); }}>Math.PI 변경</button>
-                      <button type = "button" onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('arc').value = Math.PI; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI })); }}>Math.PI 변경</button>
+                      <button type="button" onClick={() => { document.getElementById('arc').value = Math.PI * 2; setShapeModifySettings(prev => ({ ...prev, arc: Math.PI * 2 })); }}>Math.PI * 2 변경</button>
                     </div>
                   }
                   {selectedShape === 'torusknot' &&
@@ -838,21 +903,23 @@ const WebEditor = () => {
                     <label> Z : </label>
                     <input style={{ width: "40px" }} type="number" id="posZ" value={shapeModifySettings.posZ} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
                   </div><br />
-                  <button type = "button" onClick={applyChanges}>적용</button><button onClick={turnOff}>수정 취소</button>
+                  <button type="button" onClick={applyChanges}>적용</button><button onClick={turnOff}>수정 취소</button>
                 </div>
-              )}<br />
+              )
+              }
+              <br />
 
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)', maxHeight: '300px', overflowY: 'auto' }}>
-                <h3>추가된 도형 목록</h3>
+                <h3>현재 모드 : {currentMode}(키보드로 모드 변경 : a,s,d)</h3>
                 {objects.map((obj, index) => (
                   <div key={index}>
                     <span onMouseEnter={() => handleMouseEnter(index)} onMouseLeave={() => handleMouseLeave(index)}>도형 {index + 1} </span>
-                    <button type = "button" onClick={() => editShape(index)}>도형 수정</button>
-                    <button type = "button" onClick={() => removeShape(index)}>삭제</button>
+                    <button type="button" onClick={() => editShape(index)}>도형 수정</button>
+                    <button type="button" onClick={() => removeShape(index)}>삭제</button>
                   </div>
                 ))}
               </div>
-            </> : <button type = "button" onClick={guiTurn}>GUI Open</button>
+            </> : <button type="button" onClick={guiTurn}>GUI Open</button>
             }
           </div>
         </div>
