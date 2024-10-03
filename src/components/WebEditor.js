@@ -110,9 +110,11 @@ const WebEditor = () => {
 
     const axesHelper = new THREE.AxesHelper(50);
     scene.add(axesHelper);
+    axesHelperRef.current = axesHelper;
 
     const gridHelper = new THREE.GridHelper(100, 100);
     scene.add(gridHelper);
+    gridHelperRef.current = gridHelper;
 
     const ambientLight = new THREE.AmbientLight(sceneSettings.ambientLightColor, sceneSettings.ambientLightIntensity);
     scene.add(ambientLight);
@@ -447,6 +449,8 @@ const WebEditor = () => {
 
   const saveScene = () => {
     const scene = sceneRef.current;
+    const gridHelper = gridHelperRef.current;
+    const axesHelper = axesHelperRef.current;
 
     // Remove gridHelper and axesHelper
     if (gridHelperRef.current) {
@@ -457,6 +461,7 @@ const WebEditor = () => {
     }
     // TransformControls에서 해당 객체 제거 (detach)
     if (transformControlsRef.current.object) {
+      scene.remove(transformControlsRef.current);
       transformControlsRef.current.detach();
     }
 
@@ -469,11 +474,13 @@ const WebEditor = () => {
         const blob = new Blob([output], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'model.glb';
+        link.download = 'model.gltf';
         link.click();
       },
-      { binary: true }
+      { binary: false }
     );
+    scene.add(gridHelper);
+    scene.add(axesHelper);
   };
 
   return (
