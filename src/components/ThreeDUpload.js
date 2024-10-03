@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import "../css/Three.css";
+import "../css/ThreeDUpload.css";
 
 const ThreeDUpload = () => {
   const canvasRef = useRef();
@@ -16,7 +16,7 @@ const ThreeDUpload = () => {
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(dracoLoader);
 
-  loader.load('/model.glb', (gltf) => {
+  loader.load('/model.gltf', (gltf) => {
     if (gltf.scene) {
       dracoLoader.dispose(); // 메모리 누수 방지
       const scene = gltf.scene;

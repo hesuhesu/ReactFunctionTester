@@ -13,8 +13,7 @@
 }
 
 canvas {
-    border: 5px solid black; /* 검은색 테두리 추가 */
-    border-radius: 10px; /* 선택 사항: 모서리를 둥글게 처리 */
+    
     display: block; /* canvas 요소의 기본 블록 속성 */
 }
 

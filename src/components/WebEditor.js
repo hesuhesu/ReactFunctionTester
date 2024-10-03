@@ -21,6 +21,7 @@ const WebEditor = () => {
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
 
   const [guiTrue, setGuiTrue] = useState(true);
+  const [tipTrue, setTipTrue] = useState(false);
   const [objects, setObjects] = useState([]);
   const [selectedShape, setSelectedShape] = useState('box');
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
@@ -55,8 +56,6 @@ const WebEditor = () => {
 
   const [editingIndex, setEditingIndex] = useState(null); // 수정 중인 도형의 인덱스
 
-  // transformcontrol 참조
-
   useEffect(() => {
     const scene = new THREE.Scene();
     sceneRef.current = scene;
@@ -71,7 +70,7 @@ const WebEditor = () => {
       alpha: false,
       preserveDrawingBuffer: true,
     });
-    renderer.setSize(window.innerWidth / 1.2, 900);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(sceneSettings.rendererBackgroundColor, 1);
     rendererRef.current = renderer;
 
@@ -156,12 +155,25 @@ const WebEditor = () => {
         const intersectedObject = intersects[0].object;
         setSelectedObject(intersectedObject);
         transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
+        
+        const index = objects.findIndex((obj) => obj === intersectedObject);
+        setEditingIndex(index);
+        editShape(index);
+       // 객체의 위치를 읽어와서 setShapeModifySettings로 업데이트
+       const { x, y, z } = intersectedObject.position;
+       setShapeModifySettings((prevSettings) => ({
+         ...prevSettings,
+         posX: x,
+         posY: y,
+         posZ: z,
+       }));
       } else {
         // 빈 공간 클릭 시 TransformControls을 해제
         if (transformControlsRef.current.object) {
           transformControlsRef.current.detach(); // TransformControls 해제
         }
         setSelectedObject(null);
+        setEditingIndex(null);
       }
     };
     canvas.addEventListener('click', handleMouseClick);
@@ -447,6 +459,10 @@ const WebEditor = () => {
     setGuiTrue(!guiTrue);
   }
 
+  const tipTurn = () => {
+    setTipTrue(!tipTrue);
+  }
+
   const saveScene = () => {
     const scene = sceneRef.current;
     const gridHelper = gridHelperRef.current;
@@ -487,19 +503,28 @@ const WebEditor = () => {
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ position: 'relative' }}>
-          <canvas ref={canvasRef} style={{ maxWidth: '100%', border: '5px solid black', borderRadius: '10px', display: 'block' }}></canvas>
+          <canvas ref={canvasRef} style={{ maxWidth: '100%', display: 'block' }}></canvas>
           <div style={{
             position: 'absolute',
             top: '10px',
             left: '10px',
             backgroundColor: 'rgba(0, 0, 0, 0.2)',
             padding: '10px',
-            maxHeight: '800px',
+            maxHeight: '900px',
             maxWidth: '500px',
             overflowY: 'auto',
             overflowX: 'hidden'
           }}>
-            {guiTrue ? <><button type="button" onClick={guiTurn} style={{ marginBottom: '10px' }}>GUI Close</button><button type="button" onClick={saveScene} >Scene 저장하기</button>
+            {guiTrue ? <><button type="button" style={{marginBottom: '10px'}} onClick={guiTurn}>GUI Close</button><button onClick = {tipTurn}>User Tip</button><button type="button" onClick={saveScene} >Scene Save</button>
+            {tipTrue && 
+            <div style={{ fontWeight: 'bold', fontSize:"14px", border: '2px solid black', marginTop: '10px', marginBottom: '10px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 1)' }}>
+              🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br/><br/>
+              - 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 불가합니다.<br /><br/>
+              - 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br/><br/>
+              - 속성값의 궁금증을 간단히 해소하기 위해 속성값에 마우스 커서를 올리게 되면, 정보를 간단히 제시하니 참고하시길 바랍니다.<br/><br/>
+              - 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전 등 기능이 존재하며, a,s,d 키를 누르게되면 모드가 변경됩니다.<br/><br/>
+              - ... update
+            </div>}
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)' }}>
                 <div>
                   <label>배경 색 변경 </label>
