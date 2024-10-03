@@ -17,7 +17,6 @@ const WebEditor = () => {
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const transformControlsRef = useRef(); // TransformControls 참조
-  const [selectedObject, setSelectedObject] = useState(null); // 선택된 객체
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
 
   const [guiTrue, setGuiTrue] = useState(true);
@@ -153,7 +152,6 @@ const WebEditor = () => {
 
       if (intersects.length > 0) {
         const intersectedObject = intersects[0].object;
-        setSelectedObject(intersectedObject);
         transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
         
         const index = objects.findIndex((obj) => obj === intersectedObject);
@@ -169,10 +167,7 @@ const WebEditor = () => {
        }));
       } else {
         // 빈 공간 클릭 시 TransformControls을 해제
-        if (transformControlsRef.current.object) {
-          transformControlsRef.current.detach(); // TransformControls 해제
-        }
-        setSelectedObject(null);
+        if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
         setEditingIndex(null);
       }
     };
@@ -181,6 +176,7 @@ const WebEditor = () => {
     return () => {
       canvas.removeEventListener('click', handleMouseClick);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objects]);
 
   useEffect(() => {
@@ -510,12 +506,12 @@ const WebEditor = () => {
             left: '10px',
             backgroundColor: 'rgba(0, 0, 0, 0.2)',
             padding: '10px',
-            maxHeight: '900px',
+            maxHeight: '850px',
             maxWidth: '500px',
             overflowY: 'auto',
             overflowX: 'hidden'
           }}>
-            {guiTrue ? <><button type="button" style={{marginBottom: '10px'}} onClick={guiTurn}>GUI Close</button><button onClick = {tipTurn}>User Tip</button><button type="button" onClick={saveScene} >Scene Save</button>
+            {guiTrue ? <><button type="button" style={{marginBottom: '10px'}} onClick={guiTurn}>GUI Close</button><button type="button" onClick = {tipTurn}>User Tip</button><button type="button" onClick={saveScene} >Scene Save</button>
             {tipTrue && 
             <div style={{ fontWeight: 'bold', fontSize:"14px", border: '2px solid black', marginTop: '10px', marginBottom: '10px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 1)' }}>
               🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br/><br/>
