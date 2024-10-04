@@ -18,10 +18,12 @@ const WebEditor = () => {
   const mouseRef = useRef(new THREE.Vector2());
   const transformControlsRef = useRef(); // TransformControls 참조
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
+  const copiedObjectRef = useRef(null); // 복사된 객체 참조
 
   const [guiTrue, setGuiTrue] = useState(true);
   const [tipTrue, setTipTrue] = useState(false);
   const [objects, setObjects] = useState([]);
+  const [selectedObject, setSelectedObject] = useState(null); // 선택된 객체 참조
   const [selectedShape, setSelectedShape] = useState('box');
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
 
@@ -85,24 +87,6 @@ const WebEditor = () => {
       controls.enabled = !event.value;
     });
 
-    const handleKeyDown = (event) => {
-      switch (event.key) {
-        case 'a':
-          setCurrentMode('translate');
-          transformControls.setMode('translate');
-          break;
-        case 's':
-          setCurrentMode('rotate');
-          transformControls.setMode('rotate');
-          break;
-        case 'd':
-          setCurrentMode('scale');
-          transformControls.setMode('scale');
-          break;
-        default:
-          break;
-      }
-    };
     // 키 다운 이벤트 리스너 등록
     window.addEventListener('keydown', handleKeyDown);
 
@@ -138,47 +122,7 @@ const WebEditor = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 마우스 클릭으로 객체 선택 및 TransformControls 적용
-  useEffect(() => {
-    const canvas = canvasRef.current;
-
-    const handleMouseClick = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObjects(objects);
-
-      if (intersects.length > 0) {
-        const intersectedObject = intersects[0].object;
-        transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
-        
-        const index = objects.findIndex((obj) => obj === intersectedObject);
-        setEditingIndex(index);
-        editShape(index);
-       // 객체의 위치를 읽어와서 setShapeModifySettings로 업데이트
-       const { x, y, z } = intersectedObject.position;
-       setShapeModifySettings((prevSettings) => ({
-         ...prevSettings,
-         posX: x,
-         posY: y,
-         posZ: z,
-       }));
-      } else {
-        // 빈 공간 클릭 시 TransformControls을 해제
-        if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
-        setEditingIndex(null);
-      }
-    };
-    canvas.addEventListener('click', handleMouseClick);
-
-    return () => {
-      canvas.removeEventListener('click', handleMouseClick);
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objects]);
-
+  
   useEffect(() => {
     if (rendererRef.current) { rendererRef.current.setClearColor(sceneSettings.rendererBackgroundColor, 1); }
     if (ambientLightRef.current) {
@@ -199,6 +143,126 @@ const WebEditor = () => {
       [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
     }));
   };
+
+  // 마우스 클릭으로 객체 선택 및 TransformControls 적용
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    const handleMouseClick = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(objects);
+
+      if (intersects.length > 0) {
+        const intersectedObject = intersects[0].object;
+        transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
+        
+        const index = objects.findIndex((obj) => obj === intersectedObject);
+        setSelectedObject(intersectedObject); // 선택된 객체 저장
+        setEditingIndex(index);
+        editShape(index);
+       // 객체의 위치를 읽어와서 setShapeModifySettings로 업데이트
+       const { x, y, z } = intersectedObject.position;
+       setShapeModifySettings((prevSettings) => ({...prevSettings, posX: x, posY: y, posZ: z, }));
+      } else {
+        // 빈 공간 클릭 시 TransformControls을 해제
+        if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
+        setSelectedObject(null);
+        setEditingIndex(null);
+      }
+    };
+    canvas.addEventListener('click', handleMouseClick);
+
+    return () => {
+      canvas.removeEventListener('click', handleMouseClick);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objects]);
+
+ // 객체 복사 기능
+const copyObject = () => {
+  setCurrentMode("copy");
+  if (selectedObject) { copiedObjectRef.current = selectedObject.clone(); }
+  else { setCurrentMode("Non Copy"); }
+};
+
+const pasteObject = () => {
+  if (copiedObjectRef.current) {
+    setCurrentMode("Paste");
+    const copiedMesh = copiedObjectRef.current.clone(); // 복사된 객체 복사
+
+    // 객체의 크기를 계산
+    copiedMesh.geometry.computeBoundingBox(); // 경계 박스 계산
+    const boundingBox = copiedMesh.geometry.boundingBox;
+    const size = new THREE.Vector3();
+    boundingBox.getSize(size); // 객체의 크기 추출
+
+    // 새로운 위치로 복사: 크기만큼 x, y, z 좌표에 더한 위치로 설정
+    copiedMesh.position.set(
+      copiedObjectRef.current.position.x + size.x,
+      copiedObjectRef.current.position.y + size.y,
+      copiedObjectRef.current.position.z + size.z
+    );
+
+    sceneRef.current.add(copiedMesh); // 새로운 객체를 씬에 추가
+    setObjects((prevObjects) => [...prevObjects, copiedMesh]); // 상태 업데이트
+
+    copiedObjectRef.current = null; // 붙여넣기 후 복사된 객체 초기화 (중복 방지)
+  }
+};
+
+// 객체 삭제 함수
+const deleteObject = () => {
+  if (selectedObject) {
+    sceneRef.current.remove(selectedObject);
+    setCurrentMode("Delete");
+    setObjects((prevObjects) => prevObjects.filter((obj) => obj !== selectedObject)); 
+    transformControlsRef.current.detach(); 
+    setSelectedObject(null); 
+    setEditingIndex(null);
+  } 
+  else { setCurrentMode("Non Delete"); }
+};
+
+// 키보드 이벤트 핸들러
+const handleKeyDown = (event) => {
+  if (event.ctrlKey && event.key === 'c') { copyObject(); } 
+  else if (event.ctrlKey && event.key === 'v') { pasteObject(); } 
+  else if (event.key === 'Delete'){ deleteObject(); }
+  else {
+    switch (event.key) {
+      case 'a':
+        setCurrentMode('Translate');
+        transformControlsRef.current.setMode('translate');
+        break;
+      case 's':
+        setCurrentMode('Rotate');
+        transformControlsRef.current.setMode('rotate');
+        break;
+      case 'd':
+        setCurrentMode('Scale');
+        transformControlsRef.current.setMode('scale');
+        break;
+      default:
+        break;
+    }
+  }
+};
+
+// 키보드 이벤트 리스너 추가
+useEffect(() => {
+  const handleKeyDownWrapper = (event) => handleKeyDown(event);
+
+  window.addEventListener('keydown', handleKeyDownWrapper);
+
+  return () => {
+    window.removeEventListener('keydown', handleKeyDownWrapper);
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [selectedObject]);
 
   const addShape = () => {
     const { length, width, height, depth, radius, detail,
@@ -513,13 +577,13 @@ const WebEditor = () => {
           }}>
             {guiTrue ? <><button type="button" style={{marginBottom: '10px'}} onClick={guiTurn}>GUI Close</button><button type="button" onClick = {tipTurn}>User Tip</button><button type="button" onClick={saveScene} >Scene Save</button>
             {tipTrue && 
-            <div style={{ fontWeight: 'bold', fontSize:"14px", border: '2px solid black', marginTop: '10px', marginBottom: '10px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 1)' }}>
+            <div style={{ fontWeight: 'bold', fontSize:"14px", border: '2px solid black', overflowY: 'auto', maxHeight: '300px', marginTop: '10px', marginBottom: '10px', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 1)' }}>
               🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br/><br/>
               - 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 불가합니다.<br /><br/>
               - 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br/><br/>
               - 속성값의 궁금증을 간단히 해소하기 위해 속성값에 마우스 커서를 올리게 되면, 정보를 간단히 제시하니 참고하시길 바랍니다.<br/><br/>
-              - 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전 등 기능이 존재하며, a,s,d 키를 누르게되면 모드가 변경됩니다.<br/><br/>
-              - ... update
+              - 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br/><br/>
+              - 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br/><br/>
             </div>}
               <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)' }}>
                 <div>
@@ -943,7 +1007,7 @@ const WebEditor = () => {
                   <div key={index}>
                     <span onMouseEnter={() => handleMouseEnter(index)} onMouseLeave={() => handleMouseLeave(index)}>도형 {index + 1} </span>
                     <button type="button" onClick={() => editShape(index)}>도형 수정</button>
-                    <button type="button" onClick={() => removeShape(index)}>삭제</button>
+                    <button type="button" onClick={() => removeShape(index)}>❌</button>
                   </div>
                 ))}
               </div>
