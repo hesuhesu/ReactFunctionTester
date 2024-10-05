@@ -1,0 +1,99 @@
+h3 {
+    font-size: 15px; /* 크기 조정 */
+    font-weight: bold; /* 진하게 */
+    color: #fff; /* 텍스트 색상 */
+    text-align: center; /* 중앙 정렬 */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); /* 텍스트 그림자 */
+    letter-spacing: 1px; /* 자간 조정 */
+    border-bottom: 3px solid rgba(255, 255, 255, 0.3); /* 하단 테두리 */
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(50, 50, 50, 0.5)); /* 배경 그라데이션 */
+    border-radius: 5px; /* 모서리 둥글게 */
+}
+
+button {
+    background: linear-gradient(135deg, #555, #777); /* 그라데이션 배경 */
+    border: none;
+    border-radius: 5px;
+    color: white;
+    padding: 10px 20px;
+    margin-right: 5px;
+    font-size: 10px;
+    cursor: pointer;
+    transition: transform 0.4s, box-shadow 0.4s;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
+}
+button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.web-editor-inf {
+    position: absolute;
+    top: 10px; /* 소문자 수정 */
+    left: 10px;
+    background-color: rgba(0, 0, 0, 0.7);
+    padding: 10px;
+    max-height: 850px;
+    max-width: 500px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
+    border-radius: 8px; /* 둥근 모서리 */
+}
+
+.web-editor-tip {
+    font-weight: bold;
+    font-size: 14px;
+    overflow-y: auto;
+    max-height: 300px;
+    margin-bottom: 10px; 
+    padding: 10px; 
+    background-color: rgba(255, 255, 255, 0.7); 
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
+    border-radius: 8px; /* 둥근 모서리 */
+}
+
+.web-editor-light {
+    font-weight: bold; 
+    padding: 10px; 
+    background-color: rgba(255, 255, 255, 0.7); 
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
+    border-radius: 8px; /* 둥근 모서리 */
+}
+
+.web-editor-add-mesh {
+    font-weight: bold; 
+    padding: 10px; 
+    background-color: rgba(73, 169, 61, 0.7);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
+    border-radius: 8px; /* 둥근 모서리 */
+}
+
+.web-editor-modify-mesh {
+    font-weight: bold; 
+    padding: 10px; 
+    background-color: rgba(205, 103, 24, 0.7);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
+    border-radius: 8px; /* 둥근 모서리 */
+}
+
+.web-editor-meshes {
+    font-weight: bold; 
+    padding: 10px; 
+    background-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    max-height: 300px;
+    overflow-y: auto; 
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
+    border-radius: 8px; /* 둥근 모서리 */
+}
