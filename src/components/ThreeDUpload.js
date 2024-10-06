@@ -16,7 +16,7 @@ const ThreeDUpload = () => {
   dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
   loader.setDRACOLoader(dracoLoader);
 
-  loader.load('/model.gltf', (gltf) => {
+  loader.load('/bead.glb', (gltf) => {
     if (gltf.scene) {
       dracoLoader.dispose(); // 메모리 누수 방지
       const scene = gltf.scene;

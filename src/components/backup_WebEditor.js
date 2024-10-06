@@ -2,7 +2,10 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import '../css/WebEditor.css';
 
 const WebEditor = () => {
   const canvasRef = useRef();
@@ -17,11 +20,15 @@ const WebEditor = () => {
   const raycasterRef = useRef(new THREE.Raycaster());
   const mouseRef = useRef(new THREE.Vector2());
   const transformControlsRef = useRef(); // TransformControls 참조
-  const [selectedObject, setSelectedObject] = useState(null); // 선택된 객체
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
+  const copiedObjectRef = useRef(null); // 복사된 객체 참조
 
   const [guiTrue, setGuiTrue] = useState(true);
+  const [tipTrue, setTipTrue] = useState(false);
   const [objects, setObjects] = useState([]);
+  const [uploadObjects, setUploadObjects] = useState([]);
+
+  const [selectedObject, setSelectedObject] = useState(null); // 선택된 객체 참조
   const [selectedShape, setSelectedShape] = useState('box');
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
 
@@ -55,7 +62,7 @@ const WebEditor = () => {
 
   const [editingIndex, setEditingIndex] = useState(null); // 수정 중인 도형의 인덱스
 
-  // transformcontrol 참조
+  const loader = new GLTFLoader();
 
   useEffect(() => {
     const scene = new THREE.Scene();
@@ -71,7 +78,7 @@ const WebEditor = () => {
       alpha: false,
       preserveDrawingBuffer: true,
     });
-    renderer.setSize(window.innerWidth / 1.2, 900);
+    renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(sceneSettings.rendererBackgroundColor, 1);
     rendererRef.current = renderer;
 
@@ -87,32 +94,16 @@ const WebEditor = () => {
       controls.enabled = !event.value;
     });
 
-    const handleKeyDown = (event) => {
-      switch (event.key) {
-        case 'a':
-          setCurrentMode('translate');
-          transformControls.setMode('translate');
-          break;
-        case 's':
-          setCurrentMode('rotate');
-          transformControls.setMode('rotate');
-          break;
-        case 'd':
-          setCurrentMode('scale');
-          transformControls.setMode('scale');
-          break;
-        default:
-          break;
-      }
-    };
     // 키 다운 이벤트 리스너 등록
     window.addEventListener('keydown', handleKeyDown);
 
     const axesHelper = new THREE.AxesHelper(50);
     scene.add(axesHelper);
+    axesHelperRef.current = axesHelper;
 
     const gridHelper = new THREE.GridHelper(100, 100);
     scene.add(gridHelper);
+    gridHelperRef.current = gridHelper;
 
     const ambientLight = new THREE.AmbientLight(sceneSettings.ambientLightColor, sceneSettings.ambientLightIntensity);
     scene.add(ambientLight);
@@ -138,37 +129,6 @@ const WebEditor = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 마우스 클릭으로 객체 선택 및 TransformControls 적용
-  useEffect(() => {
-    const canvas = canvasRef.current;
-
-    const handleMouseClick = (event) => {
-      const rect = canvas.getBoundingClientRect();
-      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
-      const intersects = raycasterRef.current.intersectObjects(objects);
-
-      if (intersects.length > 0) {
-        const intersectedObject = intersects[0].object;
-        setSelectedObject(intersectedObject);
-        transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
-      } else {
-        // 빈 공간 클릭 시 TransformControls을 해제
-        if (transformControlsRef.current.object) {
-          transformControlsRef.current.detach(); // TransformControls 해제
-        }
-        setSelectedObject(null);
-      }
-    };
-    canvas.addEventListener('click', handleMouseClick);
-
-    return () => {
-      canvas.removeEventListener('click', handleMouseClick);
-    };
-  }, [objects]);
-
   useEffect(() => {
     if (rendererRef.current) { rendererRef.current.setClearColor(sceneSettings.rendererBackgroundColor, 1); }
     if (ambientLightRef.current) {
@@ -190,7 +150,131 @@ const WebEditor = () => {
     }));
   };
 
+  // 마우스 클릭으로 객체 선택 및 TransformControls 적용
+  useEffect(() => {
+    const canvas = canvasRef.current;
+
+    const handleMouseClick = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      const intersects = raycasterRef.current.intersectObjects(objects);
+
+      if (intersects.length > 0) {
+        const intersectedObject = intersects[0].object;
+        transformControlsRef.current.attach(intersectedObject); // 선택한 객체에 TransformControls 적용
+
+        const index = objects.findIndex((obj) => obj === intersectedObject);
+        setSelectedObject(intersectedObject); // 선택된 객체 저장
+        setEditingIndex(index);
+        editShape(index);
+        // 객체의 위치를 읽어와서 setShapeModifySettings로 업데이트
+        const { x, y, z } = intersectedObject.position;
+        setShapeModifySettings((prevSettings) => ({ ...prevSettings, posX: x, posY: y, posZ: z, }));
+      } else {
+        // 빈 공간 클릭 시 TransformControls을 해제
+        if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
+        setSelectedObject(null);
+        setEditingIndex(null);
+      }
+    };
+    canvas.addEventListener('click', handleMouseClick);
+
+    return () => {
+      canvas.removeEventListener('click', handleMouseClick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objects]);
+
+  // 객체 복사 기능
+  const copyObject = () => {
+    setCurrentMode("copy");
+    if (selectedObject) { copiedObjectRef.current = selectedObject.clone(); }
+    else { setCurrentMode("Non Copy"); }
+  };
+
+  const pasteObject = () => {
+    if (copiedObjectRef.current) {
+      setCurrentMode("Paste");
+      const copiedMesh = copiedObjectRef.current.clone(); // 복사된 객체 복사
+
+      // 객체의 크기를 계산
+      copiedMesh.geometry.computeBoundingBox(); // 경계 박스 계산
+      const boundingBox = copiedMesh.geometry.boundingBox;
+      const size = new THREE.Vector3();
+      boundingBox.getSize(size); // 객체의 크기 추출
+
+      // 새로운 위치로 복사: 크기만큼 x, y, z 좌표에 더한 위치로 설정
+      copiedMesh.position.set(
+        copiedObjectRef.current.position.x + size.x,
+        copiedObjectRef.current.position.y + size.y,
+        copiedObjectRef.current.position.z + size.z
+      );
+
+      sceneRef.current.add(copiedMesh); // 새로운 객체를 씬에 추가
+      setObjects((prevObjects) => [...prevObjects, copiedMesh]); // 상태 업데이트
+
+      copiedObjectRef.current = null; // 붙여넣기 후 복사된 객체 초기화 (중복 방지)
+    }
+  };
+
+  // 객체 삭제 함수
+  const deleteObject = () => {
+    if (selectedObject) {
+      sceneRef.current.remove(selectedObject);
+      setCurrentMode("Delete");
+      setObjects((prevObjects) => prevObjects.filter((obj) => obj !== selectedObject));
+      transformControlsRef.current.detach();
+      setSelectedObject(null);
+      setEditingIndex(null);
+    }
+    else { setCurrentMode("Non Delete"); }
+  };
+
+  // 키보드 이벤트 핸들러
+  const handleKeyDown = (event) => {
+    if (event.ctrlKey && event.key === 'c') { copyObject(); }
+    else if (event.ctrlKey && event.key === 'v') { pasteObject(); }
+    else if (event.key === 'Delete') { deleteObject(); }
+    else {
+      switch (event.key) {
+        case 'a':
+          setCurrentMode('Translate');
+          transformControlsRef.current.setMode('translate');
+          break;
+        case 's':
+          setCurrentMode('Rotate');
+          transformControlsRef.current.setMode('rotate');
+          break;
+        case 'd':
+          setCurrentMode('Scale');
+          transformControlsRef.current.setMode('scale');
+          break;
+        default:
+          break;
+      }
+    }
+  };
+
+  // 키보드 이벤트 리스너 추가
+  useEffect(() => {
+    const handleKeyDownWrapper = (event) => handleKeyDown(event);
+
+    window.addEventListener('keydown', handleKeyDownWrapper);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownWrapper);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedObject]);
+
   const addShape = () => {
+    if (selectedShape === 'uploadgltf') {
+      setSelectedShape('box');
+      return;
+    }
     const { length, width, height, depth, radius, detail,
       widthSegments, heightSegments, depthSegments, capSegments, radialSegments, tubularSegments,
       radiusTop, radiusBottom,
@@ -365,6 +449,8 @@ const WebEditor = () => {
     setEditingIndex(null);
   }
 
+
+
   const removeShape = (index) => {
     const updatedObjects = [...objects];
     const objToRemove = updatedObjects[index];
@@ -375,58 +461,6 @@ const WebEditor = () => {
     sceneRef.current.remove(objToRemove);
     setObjects(updatedObjects.filter((_, i) => i !== index));
     setEditingIndex(null);
-  };
-
-  const [intervalId, setIntervalId] = useState(null);
-
-  const handleMouseEnter = (index) => {
-
-    const obj = objects[index];
-
-    // Save the original color
-    const originalColor = obj.material.color.getHex();
-
-    // Start the color transition effect
-    const rainbowColors = [
-      0xff0000, // Red
-      0xff7f00, // Orange
-      0xffff00, // Yellow
-      0x00ff00, // Green
-      0x0000ff, // Blue
-      0x4b0082, // Indigo
-      0x8b00ff  // Violet
-    ];
-
-    let colorIndex = 0;
-    let colorTransitionInterval = null;
-
-    // Function to update the color
-    const updateColor = () => {
-      obj.material.color.setHex(rainbowColors[colorIndex]);
-      colorIndex = (colorIndex + 1) % rainbowColors.length;
-    };
-
-    // Change color every 500ms
-    colorTransitionInterval = setInterval(updateColor, 500);
-
-    // Store interval ID and original color
-    setIntervalId(colorTransitionInterval);
-    obj.userData.originalColor = originalColor;
-  };
-
-  const handleMouseLeave = (index) => {
-    const obj = objects[index];
-
-    // Revert to the original color
-    if (obj.material) {
-      obj.material.color.setHex(obj.userData.originalColor || 0xffffff);
-    }
-
-    // Clear the color transition interval
-    if (intervalId) {
-      clearInterval(intervalId);
-      setIntervalId(null);
-    }
   };
 
   const resetControls = () => {
@@ -441,12 +475,10 @@ const WebEditor = () => {
     });
   };
 
-  const guiTurn = () => {
-    setGuiTrue(!guiTrue);
-  }
-
   const saveScene = () => {
     const scene = sceneRef.current;
+    const gridHelper = gridHelperRef.current;
+    const axesHelper = axesHelperRef.current;
 
     // Remove gridHelper and axesHelper
     if (gridHelperRef.current) {
@@ -457,6 +489,7 @@ const WebEditor = () => {
     }
     // TransformControls에서 해당 객체 제거 (detach)
     if (transformControlsRef.current.object) {
+      scene.remove(transformControlsRef.current);
       transformControlsRef.current.detach();
     }
 
@@ -469,31 +502,91 @@ const WebEditor = () => {
         const blob = new Blob([output], { type: 'application/json' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = 'model.glb';
+        link.download = 'model.gltf';
         link.click();
       },
-      { binary: true }
+      { binary: false }
     );
+    scene.add(gridHelper);
+    scene.add(axesHelper);
   };
+
+  const guiTurn = () => {
+    setGuiTrue(!guiTrue);
+  }
+
+  const tipTurn = () => {
+    setTipTrue(!tipTrue);
+  }
+
+
+  // GLTF 파일 업로드 및 매쉬 저장
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+        const loader = new GLTFLoader();
+        const url = URL.createObjectURL(file);
+        const dracoLoader = new DRACOLoader();
+        dracoLoader.setDecoderConfig({ type: 'js' });
+        dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+        loader.setDRACOLoader(dracoLoader);
+        loader.load(url, (gltf) => {
+            dracoLoader.dispose();
+            const meshes = gltf.scene.children.filter(child => child.isMesh);
+            setUploadObjects((prev) => [...prev, ...meshes]);
+            sceneRef.current.add(gltf.scene);
+        });
+    }
+};
+
+// 매쉬 삭제
+const handleDeleteMesh = (mesh) => {
+    setUploadObjects((prev) => prev.filter((m) => m !== mesh));
+    sceneRef.current.remove(mesh);
+};
+
+// 모든 매쉬 삭제
+const handleDeleteAllMeshes = () => {
+  uploadObjects.forEach((mesh) => {
+      sceneRef.current.remove(mesh);
+      // 메모리 해체
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+  });
+  setUploadObjects([]); // 상태 초기화
+};
+
+// 색상 수정
+const handleColorChange = (mesh, color) => {
+    mesh.material.color.set(color);
+};
+
+// 크기 수정
+const handleSizeChange = (mesh, size) => {
+    mesh.scale.set(size, size, size); // 동일한 비율로 크기 조정
+};
 
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ position: 'relative' }}>
-          <canvas ref={canvasRef} style={{ maxWidth: '100%', border: '5px solid black', borderRadius: '10px', display: 'block' }}></canvas>
-          <div style={{
-            position: 'absolute',
-            top: '10px',
-            left: '10px',
-            backgroundColor: 'rgba(0, 0, 0, 0.2)',
-            padding: '10px',
-            maxHeight: '800px',
-            maxWidth: '500px',
-            overflowY: 'auto',
-            overflowX: 'hidden'
-          }}>
-            {guiTrue ? <><button type="button" onClick={guiTurn} style={{ marginBottom: '10px' }}>GUI Close</button><button type="button" onClick={saveScene} >Scene 저장하기</button>
-              <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)' }}>
+          <canvas ref={canvasRef} style={{ maxWidth: '100%', display: 'block' }}></canvas>
+          <div className="web-editor-inf">
+            {guiTrue ? <>
+              <button type="button" style={{ marginBottom: '10px' }} onClick={guiTurn}>GUI Close</button>
+              <button type="button" onClick={tipTurn}>User Tip</button>
+              <button type="button" onClick={saveScene} >Scene Save</button>
+              <button type="button" onClick={() => window.location.href = "/"}>Cache All Clear</button>
+              {tipTrue &&
+                <div className="web-editor-tip">
+                  🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br /><br />
+                  1. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{color:"red"}}>불가</span>합니다.<br /><br />
+                  2. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
+                  3. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
+                  4. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
+                  5. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
+                </div>}
+              <div className="web-editor-light">
                 <div>
                   <label>배경 색 변경 </label>
                   <input type="color" id="rendererBackgroundColor" value={sceneSettings.rendererBackgroundColor} onChange={handleChange} />
@@ -525,10 +618,9 @@ const WebEditor = () => {
                 </div>
                 <button type="button" onClick={resetControls} style={{ marginTop: '10px' }}>Reset Light</button>
               </div>
-              <br />
 
               {editingIndex === null ? (
-                <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(73, 169, 61, 1)' }}>
+                <div className="web-editor-add-mesh">
                   <h3>새로운 도형 추가</h3>
                   <div>
                     <label>도형 선택 </label>
@@ -561,7 +653,8 @@ const WebEditor = () => {
                   <div>
                     <label>도형 색상 </label>
                     <input type="color" id="color" value={shapeSettings.color} onChange={(e) => { setShapeSettings(prev => ({ ...prev, color: e.target.value })); }} />
-                  </div><br />
+                  </div>
+                  <br />
                   {selectedShape === 'box' &&
                     <div>
                       <label>가로(Width):</label>
@@ -713,7 +806,7 @@ const WebEditor = () => {
                       <label title="torus 내부 원을 감은 정도">(Q)</label>
                       <input type="number" id="q" value={shapeSettings.q} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, q: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
-                  }<br />
+                  }
                   <div>
                     <label>X : </label>
                     <input style={{ width: "40px" }} type="number" id="posX" value={shapeSettings.posX} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posX: parseFloat(e.target.value) })); }} />
@@ -722,11 +815,11 @@ const WebEditor = () => {
                     <label> Z : </label>
                     <input style={{ width: "40px" }} type="number" id="posZ" value={shapeSettings.posZ} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
                   </div><br />
-                  <button type="button" onClick={addShape}>도형 추가</button>
+                  <button type="button" onClick={addShape}>매쉬 추가</button>
                 </div>
               ) : (
-                <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(205, 103, 24, 1)' }}>
-                  <h3>도형 {editingIndex + 1} 수정 중...</h3>
+                <div className="web-editor-modify-mesh">
+                  <h3>Edit "Mesh {editingIndex + 1}"</h3>
                   <div>
                     <label>재질 선택 </label>
                     <select value={selectedMaterial} onChange={(e) => setSelectedMaterial(e.target.value)}>
@@ -907,15 +1000,30 @@ const WebEditor = () => {
                 </div>
               )
               }
-              <br />
+              <div className="web-editor-upload-meshes">
+                <h3>Upload Mesh</h3>
+                <input id="file-input" type="file" accept=".glb,.gltf" className="upload-input" onChange={handleFileUpload} />
+                <button className="upload-label" onClick={() => document.getElementById('file-input').click()}>Upload File</button>
+                <button onClick={handleDeleteAllMeshes}>Delete All Meshes</button>
+                <ul>
+                  {uploadObjects.map((mesh, index) => (
+                    <li key={index}>
+                      <span>{mesh.name} </span>
+                      <input type="color" onChange={(e) => handleColorChange(mesh, e.target.value)} value={`#${mesh.material.color.getHexString()}`} /><br/>
+                      <input type="number" min="0" step="any" onChange={(e) => handleSizeChange(mesh, parseFloat(e.target.value) || 1)}  value={mesh.scale.x} style={{ height: '20px', width: '250px' }} />
+                      <button onClick={() => handleDeleteMesh(mesh)}>x</button>
+                    </li>
+                  ))}
+                </ul>
 
-              <div style={{ fontWeight: 'bold', border: '2px solid black', padding: '10px', backgroundColor: 'rgba(255, 255, 255, 0.5)', maxHeight: '300px', overflowY: 'auto' }}>
-                <h3>현재 모드 : {currentMode}(키보드로 모드 변경 : a,s,d)</h3>
+              </div>
+              <div className="web-editor-meshes">
+                <h3>Mode : {currentMode}(Mode Change : a,s,d)</h3>
                 {objects.map((obj, index) => (
                   <div key={index}>
-                    <span onMouseEnter={() => handleMouseEnter(index)} onMouseLeave={() => handleMouseLeave(index)}>도형 {index + 1} </span>
-                    <button type="button" onClick={() => editShape(index)}>도형 수정</button>
-                    <button type="button" onClick={() => removeShape(index)}>삭제</button>
+                    <span>Mesh {index + 1}</span><br />
+                    <button type="button" style={{ marginTop: '5px', marginBottom: '5px' }} onClick={() => editShape(index)}>도형 수정</button>
+                    <button type="button" onClick={() => removeShape(index)}>❌</button>
                   </div>
                 ))}
               </div>

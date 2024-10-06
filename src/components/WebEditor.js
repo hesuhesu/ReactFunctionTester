@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import '../css/WebEditor.css';
 
@@ -21,9 +23,13 @@ const WebEditor = () => {
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
   const copiedObjectRef = useRef(null); // 복사된 객체 참조
 
+  const loader = new GLTFLoader();
+
   const [guiTrue, setGuiTrue] = useState(true);
   const [tipTrue, setTipTrue] = useState(false);
   const [objects, setObjects] = useState([]);
+  const [uploadObjects, setUploadObjects] = useState([]);
+
   const [selectedObject, setSelectedObject] = useState(null); // 선택된 객체 참조
   const [selectedShape, setSelectedShape] = useState('box');
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
@@ -75,6 +81,17 @@ const WebEditor = () => {
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setClearColor(sceneSettings.rendererBackgroundColor, 1);
     rendererRef.current = renderer;
+
+    // 리사이즈 핸들러
+    const handleResize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      // 렌더러와 카메라 비율 조정
+      renderer.setSize(width, height);
+    };
+
+    window.addEventListener('resize', handleResize);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controlsRef.current = controls;
@@ -317,8 +334,6 @@ const WebEditor = () => {
         break;
       case 'torusknot': geometry = new THREE.TorusKnotGeometry(radius, tube, tubularSegments, radialSegments, p, q);
         break;
-      case 'uploadgltf': setSelectedShape('box');
-        return;
       default: geometry = new THREE.BoxGeometry(1, 1, 1);
     }
 
@@ -465,14 +480,6 @@ const WebEditor = () => {
     });
   };
 
-  const guiTurn = () => {
-    setGuiTrue(!guiTrue);
-  }
-
-  const tipTurn = () => {
-    setTipTrue(!tipTrue);
-  }
-
   const saveScene = () => {
     const scene = sceneRef.current;
     const gridHelper = gridHelperRef.current;
@@ -509,6 +516,80 @@ const WebEditor = () => {
     scene.add(axesHelper);
   };
 
+  const guiTurn = () => {
+    setGuiTrue(!guiTrue);
+  }
+
+  const tipTurn = () => {
+    setTipTrue(!tipTrue);
+  }
+
+  const handleFileUpload = (event) => {
+    const scene = sceneRef.current;
+    const file = event.target.files[0];
+
+    if (file) {
+      const url = URL.createObjectURL(file);
+      const dracoLoader = new DRACOLoader();
+      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+      loader.setDRACOLoader(dracoLoader);
+      loader.load(url, (gltf) => {
+        if (gltf.scene) {
+          dracoLoader.dispose();
+          // GLTF의 모든 노드를 순회
+          gltf.scene.traverse((child) => {
+            console.log(child.name);
+            if (child.isMesh) {
+              // 매쉬를 씬에 추가
+              scene.add(child);
+              // uploadObjects 배열에 추가
+              setUploadObjects((prev) => [...prev, child]);
+            } else if (child.isGroup) {
+              // 만약 그룹이면, 그룹 내의 모든 매쉬도 추가
+              child.traverse((mesh) => {
+                if (mesh.isMesh) {
+                  scene.add(mesh);
+                  setUploadObjects((prev) => [...prev, mesh]);
+                }
+              });
+            }
+          });
+        }
+      }, undefined, (error) => { console.error('모델을 로딩하는 도중 오류 발생:', error); }
+      );
+    }
+  };
+
+  // 매쉬 삭제
+  const handleDeleteMesh = (mesh) => {
+    setUploadObjects((prev) => prev.filter((m) => m !== mesh));
+    sceneRef.current.remove(mesh);
+  };
+
+  // 모든 매쉬 삭제
+  const handleDeleteAllMeshes = () => {
+    if (uploadObjects.length === 0) {
+      alert("No Meshes");
+      return;
+    }
+    uploadObjects.forEach((mesh) => {
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+      sceneRef.current.remove(mesh);
+    });
+    setUploadObjects([]); // 상태 초기화
+  };
+
+  // 색상 수정
+  const handleColorChange = (mesh, color) => {
+    mesh.material.color.set(color);
+  };
+
+  // 크기 수정
+  const handleSizeChange = (mesh, size) => {
+    mesh.scale.set(size, size, size); // 동일한 비율로 크기 조정
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -523,12 +604,11 @@ const WebEditor = () => {
               {tipTrue &&
                 <div className="web-editor-tip">
                   🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br /><br />
-                  - 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 불가합니다.<br /><br />
-                  - 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
-                  - 속성값의 궁금증을 간단히 해소하기 위해 속성값에 마우스 커서를 올리게 되면, 정보를 간단히 제시하니 참고하시길 바랍니다.<br /><br />
-                  - 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
-                  - 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
-                  - 도형 선택에서 파일 업로드 기능을 선택할 수 있습니다. 매쉬 추가 버튼을 누르면 gltf 파일을 업로드 가능합니다.
+                  1. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{ color: "red" }}>불가</span>합니다.<br /><br />
+                  2. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
+                  3. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
+                  4. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
+                  5. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
                 </div>}
               <div className="web-editor-light">
                 <div>
@@ -562,7 +642,6 @@ const WebEditor = () => {
                 </div>
                 <button type="button" onClick={resetControls} style={{ marginTop: '10px' }}>Reset Light</button>
               </div>
-              <br />
 
               {editingIndex === null ? (
                 <div className="web-editor-add-mesh">
@@ -581,27 +660,24 @@ const WebEditor = () => {
                       <option value="sphere">구</option>
                       <option value="torus">Torus</option>
                       <option value="torusknot">TorusKnot</option>
-                      <option value="uploadgltf">Upload GLTF</option>
                     </select>
                   </div>
-                  {selectedShape !== 'uploadgltf' && <>
-                      <div>
-                        <label>재질 선택 </label>
-                        <select value={selectedMaterial} onChange={(e) => setSelectedMaterial(e.target.value)}>
-                          <option value="basic">Basic</option>
-                          <option value="lambert">Lambert</option>
-                          <option value="matcap">Matcap</option>
-                          <option value="phong">Phong</option>
-                          <option value="physical">Physical</option>
-                          <option value="standard">Standard</option>
-                          <option value="toon">Toon</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label>도형 색상 </label>
-                        <input type="color" id="color" value={shapeSettings.color} onChange={(e) => { setShapeSettings(prev => ({ ...prev, color: e.target.value })); }} />
-                      </div></>
-                  }
+                  <div>
+                    <label>재질 선택 </label>
+                    <select value={selectedMaterial} onChange={(e) => setSelectedMaterial(e.target.value)}>
+                      <option value="basic">Basic</option>
+                      <option value="lambert">Lambert</option>
+                      <option value="matcap">Matcap</option>
+                      <option value="phong">Phong</option>
+                      <option value="physical">Physical</option>
+                      <option value="standard">Standard</option>
+                      <option value="toon">Toon</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label>도형 색상 </label>
+                    <input type="color" id="color" value={shapeSettings.color} onChange={(e) => { setShapeSettings(prev => ({ ...prev, color: e.target.value })); }} />
+                  </div>
                   <br />
                   {selectedShape === 'box' &&
                     <div>
@@ -755,21 +831,14 @@ const WebEditor = () => {
                       <input type="number" id="q" value={shapeSettings.q} min={0} onChange={(e) => { setShapeSettings(prev => ({ ...prev, q: parseInt(e.target.value, 10) })); }} /><br />
                     </div>
                   }
-                  {selectedShape === 'uploadgltf' &&
-                    <div>
-                      <label>매쉬 추가를 하면 업로드가 진행됩니다.</label>
-                    </div>
-                  }<br />
-                  {selectedShape !== 'uploadgltf' &&
-                    <div>
-                      <label>X : </label>
-                      <input style={{ width: "40px" }} type="number" id="posX" value={shapeSettings.posX} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posX: parseFloat(e.target.value) })); }} />
-                      <label> Y : </label>
-                      <input style={{ width: "40px" }} type="number" id="posY" value={shapeSettings.posY} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posY: parseFloat(e.target.value) })); }} />
-                      <label> Z : </label>
-                      <input style={{ width: "40px" }} type="number" id="posZ" value={shapeSettings.posZ} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
-                    </div>
-                  }<br />
+                  <div>
+                    <label>X : </label>
+                    <input style={{ width: "40px" }} type="number" id="posX" value={shapeSettings.posX} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posX: parseFloat(e.target.value) })); }} />
+                    <label> Y : </label>
+                    <input style={{ width: "40px" }} type="number" id="posY" value={shapeSettings.posY} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posY: parseFloat(e.target.value) })); }} />
+                    <label> Z : </label>
+                    <input style={{ width: "40px" }} type="number" id="posZ" value={shapeSettings.posZ} onChange={(e) => { setShapeSettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
+                  </div><br />
                   <button type="button" onClick={addShape}>매쉬 추가</button>
                 </div>
               ) : (
@@ -955,8 +1024,21 @@ const WebEditor = () => {
                 </div>
               )
               }
-              <br />
-
+              <div className="web-editor-upload-meshes">
+                <h3>Upload Mesh(Test 단계)</h3>
+                <input id="file-input" type="file" accept=".glb,.gltf" className="upload-input" onChange={handleFileUpload} />
+                {/*<button className="upload-label" onClick={() => document.getElementById('file-input').click()}>Upload File</button>*/}
+                <button className="upload-label" onClick={() => document.getElementById('file-input').click()}>Upload File</button>
+                <button onClick={handleDeleteAllMeshes} style={{ marginBottom: '5px' }}>Delete All Meshes</button>
+                {uploadObjects.map((mesh, index) => (
+                  <div key={index}>
+                    <span>{mesh.name} </span>
+                    <input type="color" defaultValue={`#${mesh.material.color.getHexString()}`} onChange={(e) => handleColorChange(mesh, e.target.value)} /><br />
+                    <input type="number" min="0" step="any" defaultValue={mesh.scale.x} style={{ height: '20px', width: '250px', marginRight: '5px' }} onChange={(e) => handleSizeChange(mesh, parseFloat(e.target.value) || 1)} />
+                    <button onClick={() => handleDeleteMesh(mesh)}>❌</button>
+                  </div>
+                ))}
+              </div>
               <div className="web-editor-meshes">
                 <h3>Mode : {currentMode}(Mode Change : a,s,d)</h3>
                 {objects.map((obj, index) => (
