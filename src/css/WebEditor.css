@@ -1,17 +1,57 @@
+/* 스크롤바 전체 */
+::-webkit-scrollbar {
+    width: 15px;
+    /* 스크롤바 너비 */
+}
+
+/* 스크롤바 트랙 */
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    /* 스크롤바 트랙 배경색 */
+    border-radius: 10px;
+    /* 둥근 모서리 */
+}
+
+/* 스크롤바 핸들 */
+::-webkit-scrollbar-thumb {
+    background-color: #888;
+    /* 스크롤바 색상 */
+    border-radius: 10px;
+    /* 스크롤바 둥근 모서리 */
+    border: 3px solid #f1f1f1;
+    /* 스크롤바 핸들 외부 여백 */
+}
+
+/* 스크롤바 핸들 호버 */
+::-webkit-scrollbar-thumb:hover {
+    background-color: #555;
+    /* 호버 시 색상 변경 */
+}
+
 h3 {
-    font-size: 15px; /* 크기 조정 */
-    font-weight: bold; /* 진하게 */
-    color: #fff; /* 텍스트 색상 */
-    text-align: center; /* 중앙 정렬 */
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6); /* 텍스트 그림자 */
-    letter-spacing: 1px; /* 자간 조정 */
-    border-bottom: 3px solid rgba(255, 255, 255, 0.3); /* 하단 테두리 */
-    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(50, 50, 50, 0.5)); /* 배경 그라데이션 */
-    border-radius: 5px; /* 모서리 둥글게 */
+    font-size: 15px;
+    /* 크기 조정 */
+    font-weight: bold;
+    /* 진하게 */
+    color: #fff;
+    /* 텍스트 색상 */
+    text-align: center;
+    /* 중앙 정렬 */
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
+    /* 텍스트 그림자 */
+    letter-spacing: 1px;
+    /* 자간 조정 */
+    border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+    /* 하단 테두리 */
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.5), rgba(50, 50, 50, 0.5));
+    /* 배경 그라데이션 */
+    border-radius: 5px;
+    /* 모서리 둥글게 */
 }
 
 button {
-    background: linear-gradient(135deg, #555, #777); /* 그라데이션 배경 */
+    background: linear-gradient(135deg, #555, #777);
+    /* 그라데이션 배경 */
     border: none;
     border-radius: 5px;
     color: white;
@@ -22,10 +62,12 @@ button {
     transition: transform 0.4s, box-shadow 0.4s;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
+
 button:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
 }
+
 button:active {
     transform: translateY(0);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
@@ -33,7 +75,8 @@ button:active {
 
 .web-editor-inf {
     position: absolute;
-    top: 10px; /* 소문자 수정 */
+    top: 10px;
+    /* 소문자 수정 */
     left: 10px;
     background-color: rgba(0, 0, 0, 0.7);
     padding: 10px;
@@ -42,8 +85,10 @@ button:active {
     overflow-y: auto;
     overflow-x: hidden;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
 
 .web-editor-tip {
@@ -51,73 +96,88 @@ button:active {
     font-size: 14px;
     overflow-y: auto;
     max-height: 300px;
-    margin-bottom: 10px; 
-    padding: 10px; 
-    background-color: rgba(255, 255, 255, 0.7); 
+    margin-bottom: 10px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.7);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
 
 .web-editor-light {
-    font-weight: bold; 
-    padding: 10px; 
+    font-weight: bold;
+    padding: 10px;
     margin-bottom: 10px;
-    background-color: rgba(255, 255, 255, 0.7); 
+    background-color: rgba(255, 255, 255, 0.7);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
 
 .web-editor-add-mesh {
-    font-weight: bold; 
-    padding: 10px; 
+    font-weight: bold;
+    padding: 10px;
     margin-bottom: 10px;
     background-color: rgba(73, 169, 61, 0.7);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
 
 .web-editor-modify-mesh {
-    font-weight: bold; 
-    padding: 10px; 
+    font-weight: bold;
+    padding: 10px;
     margin-bottom: 10px;
     background-color: rgba(205, 103, 24, 0.7);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
-}
-
-.web-editor-upload-meshes {
-    padding: 10px; 
-    background-color: rgba(229, 255, 0, 0.7);
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    max-height: 300px;
-    overflow-y: auto; 
-    margin-bottom: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
 
 .web-editor-meshes {
-    font-weight: bold; 
-    padding: 10px; 
+    font-weight: bold;
+    padding: 10px;
     background-color: rgba(255, 255, 255, 0.7);
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
     max-height: 300px;
-    overflow-y: auto; 
+    overflow-y: auto;
+    margin-bottom: 10px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* 텍스트 그림자 */
-    border-radius: 8px; /* 둥근 모서리 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
+}
+
+.web-editor-upload-meshes {
+    padding: 10px;
+    background-color: rgba(229, 255, 0, 0.7);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
 
 .upload-input {
-    display: none; /* 기본 input 숨기기 */
-  }
-  .upload-label {
-    background: linear-gradient(135deg, #555, #777); /* 그라데이션 배경 */
+    display: none;
+    /* 기본 input 숨기기 */
+}
+
+.upload-label {
+    background: linear-gradient(135deg, #555, #777);
+    /* 그라데이션 배경 */
     border: none;
     border-radius: 5px;
     color: white;
@@ -125,7 +185,8 @@ button:active {
     margin-right: 5px;
     font-size: 10px;
     cursor: pointer;
-    transition: transform 0.4s ease, box-shadow 0.4s ease; /* ease 추가 */
+    transition: transform 0.4s ease, box-shadow 0.4s ease;
+    /* ease 추가 */
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
 }
 
@@ -135,6 +196,19 @@ button:active {
 }
 
 .upload-label:active {
-    transform: translateY(0); /* 클릭 시 위치 초기화 */
+    transform: translateY(0);
+    /* 클릭 시 위치 초기화 */
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+}
+
+.web-editor-mini-div {
+    font-weight: bold;
+    padding: 10px;
+    margin-top: 5px;
+    background-color: rgba(0, 255, 255, 0.5);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+    /* 텍스트 그림자 */
+    border-radius: 8px;
+    /* 둥근 모서리 */
 }
