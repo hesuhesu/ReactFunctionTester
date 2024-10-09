@@ -28,6 +28,14 @@
     /* 호버 시 색상 변경 */
 }
 
+.custom-checkbox {
+    width: 15px; /* 원하는 너비 */
+    height: 15px; /* 원하는 높이 */
+    transform: scale(1.5); /* 크기를 1.5배로 조정 */
+    margin-left: 10px;
+    top:5px;
+}
+
 h3 {
     font-size: 15px;
     /* 크기 조정 */

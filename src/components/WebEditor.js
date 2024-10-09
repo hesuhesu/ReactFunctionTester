@@ -22,10 +22,9 @@ const WebEditor = () => {
   const mouseRef = useRef(new THREE.Vector2());
   const transformControlsRef = useRef(); // TransformControls 참조
   const transformControlsRef2 = useRef(); // TransformControls 참조
-  const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
   const copiedObjectRef = useRef(null); // 복사된 객체 참조
   const copiedObjectRef2 = useRef(null); // 복사된 객체 참조
-  
+
   const [guiTrue, setGuiTrue] = useState(true);
   const [tipTrue, setTipTrue] = useState(false);
   const [objects, setObjects] = useState([]);
@@ -35,7 +34,11 @@ const WebEditor = () => {
   const [selectedObject, setSelectedObject] = useState([]); // 선택된 객체 참조
   const [selectedObject2, setSelectedObject2] = useState([]); // 선택된 객체 참조
   const [selectedShape, setSelectedShape] = useState('box');
+  const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
+  const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set());
+
+  const [cameraPosition, setCameraPosition] = useState({ x: 5, y: 5, z: 5 });
 
   const [sceneSettings, setSceneSettings] = useState({ // 조명 세팅
     rendererBackgroundColor: "#ffffff",
@@ -78,12 +81,23 @@ const WebEditor = () => {
     }).then(() => { });
   }
 
+  const handleCameraPositionChange = (axis, value) => {
+    const newPosition = { ...cameraPosition, [axis]: value };
+    setCameraPosition(newPosition);
+
+    const camera = cameraRef.current;
+    if (camera) {
+      camera.position.set(newPosition.x, newPosition.y, newPosition.z);
+      camera.updateProjectionMatrix(); // 카메라의 프로젝션 행렬 업데이트
+    }
+  };
+
   useEffect(() => {
     const scene = new THREE.Scene();
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(5, 5, 5);
+    camera.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
     cameraRef.current = camera;
 
     const renderer = new THREE.WebGLRenderer({
@@ -152,6 +166,7 @@ const WebEditor = () => {
     animate();
 
     return () => {
+      window.removeEventListener('resize', handleResize);
       renderer.dispose();
       scene.clear();
     };
@@ -171,73 +186,65 @@ const WebEditor = () => {
     }
   }, [sceneSettings]);
 
-  const handleChange = (event) => {
-    const { id, value } = event.target;
-    setSceneSettings((prevSettings) => ({
-      ...prevSettings,
-      [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
-    }));
-  };
-
   // 마우스 클릭으로 객체 선택 및 TransformControls 적용
   useEffect(() => {
-  const canvas = canvasRef.current;
+    const canvas = canvasRef.current;
 
-  const handleMouseClick = (event) => {
-    const rect = canvas.getBoundingClientRect();
-    mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-    mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+    const handleMouseClick = (event) => {
+      const rect = canvas.getBoundingClientRect();
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
-    raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
+      raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
 
-    // objects와 uploadObjects 둘 다 탐색
-    const intersectsObjects = raycasterRef.current.intersectObjects(objects);
-    const intersectsUploadObjects = raycasterRef.current.intersectObjects(uploadObjects);
+      // objects와 uploadObjects 둘 다 탐색
+      const intersectsObjects = raycasterRef.current.intersectObjects(objects);
+      const intersectsUploadObjects = raycasterRef.current.intersectObjects(uploadObjects);
 
-    // 두 배열에서 가장 가까운 객체 선택
-    const closestIntersect = [...intersectsObjects, ...intersectsUploadObjects].sort(
-      (a, b) => a.distance - b.distance
-    )[0];
+      // 두 배열에서 가장 가까운 객체 선택
+      const closestIntersect = [...intersectsObjects, ...intersectsUploadObjects].sort(
+        (a, b) => a.distance - b.distance
+      )[0];
 
-    if (closestIntersect) {
-      const intersectedObject = closestIntersect.object;
+      if (closestIntersect) {
+        const intersectedObject = closestIntersect.object;
 
-      // TransformControls 활성화 (적용할 TransformControls에 따라 분기)
-      if (objects.includes(intersectedObject)) {
-        if (transformControlsRef2.current.object) { transformControlsRef2.current.detach(); }
-        transformControlsRef.current.attach(intersectedObject);
-        const index = objects.findIndex((obj) => obj === intersectedObject);
-        setSelectedObject(intersectedObject);
-        setSelectedObject2(null);
-        setEditingIndex(index);
-        editShape(index);
-        const { x, y, z } = intersectedObject.position;
-        setShapeModifySettings((prevSettings) => ({
-          ...prevSettings, posX: x, posY: y, posZ: z,
-        }));
-      } 
-      else if (uploadObjects.includes(intersectedObject)) {
+        // TransformControls 활성화 (적용할 TransformControls에 따라 분기)
+        if (objects.includes(intersectedObject)) {
+          if (transformControlsRef2.current.object) { transformControlsRef2.current.detach(); }
+          transformControlsRef.current.attach(intersectedObject);
+          const index = objects.findIndex((obj) => obj === intersectedObject);
+          setSelectedObject(intersectedObject);
+          setSelectedObject2(null);
+          setEditingIndex(index);
+          editShape(index);
+          const { x, y, z } = intersectedObject.position;
+          setShapeModifySettings((prevSettings) => ({
+            ...prevSettings, posX: x, posY: y, posZ: z,
+          }));
+        }
+        else if (uploadObjects.includes(intersectedObject)) {
+          if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
+          transformControlsRef2.current.attach(intersectedObject);
+          setSelectedObject2(intersectedObject);
+          setSelectedObject(null);
+        }
+      } else {
+        // 빈 공간 클릭 시 TransformControls 해제
         if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
-        transformControlsRef2.current.attach(intersectedObject);
-        setSelectedObject2(intersectedObject);
+        if (transformControlsRef2.current.object) { transformControlsRef2.current.detach(); }
         setSelectedObject(null);
+        setSelectedObject2(null);
+        setEditingIndex(null);
       }
-    } else {
-      // 빈 공간 클릭 시 TransformControls 해제
-      if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
-      if (transformControlsRef2.current.object) { transformControlsRef2.current.detach(); }
-      setSelectedObject(null);
-      setSelectedObject2(null);
-      setEditingIndex(null);
-    }
-  };
+    };
 
-  canvas.addEventListener('click', handleMouseClick);
-  return () => {
-    canvas.removeEventListener('click', handleMouseClick);
-  };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [objects, uploadObjects]);
+    canvas.addEventListener('click', handleMouseClick);
+    return () => {
+      canvas.removeEventListener('click', handleMouseClick);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objects, uploadObjects]);
 
   // 객체 복사 기능
   const copyObject = () => {
@@ -304,21 +311,38 @@ const WebEditor = () => {
   const deleteObject = () => {
     if (selectedObject) {
       sceneRef.current.remove(selectedObject);
-      setCurrentMode("Delete");
       setObjects((prevObjects) => prevObjects.filter((obj) => obj !== selectedObject));
       transformControlsRef.current.detach();
       setSelectedObject(null);
       setEditingIndex(null);
+      setCurrentMode("Delete");
     }
     else { setCurrentMode("Non Delete"); }
   };
   const deleteObject2 = () => {
     if (selectedObject2) {
+      // selectedObject2의 index 찾기
+      const indexToDelete = uploadObjects.findIndex((obj) => obj === selectedObject2);
       sceneRef.current.remove(selectedObject2);
-      setCurrentMode("Delete");
       setUploadObjects((prevObjects) => prevObjects.filter((obj) => obj !== selectedObject2));
+
+      // 선택된 인덱스 관리
+      setSelectedIndexUploadMeshes((prevSet) => {
+        const updatedSet = new Set();
+
+        prevSet.forEach((index) => {
+          if (index < indexToDelete) {
+            updatedSet.add(index);  // 삭제된 인덱스보다 작은 인덱스는 그대로 유지
+          } else if (index > indexToDelete) {
+            updatedSet.add(index - 1);  // 삭제된 인덱스 이후의 인덱스는 1씩 감소
+          }
+        });
+        return updatedSet;
+      });
+
       transformControlsRef2.current.detach();
       setSelectedObject2(null);
+      setCurrentMode("Delete");
     }
     else { setCurrentMode("Non Delete"); }
   };
@@ -564,6 +588,32 @@ const WebEditor = () => {
     setEditingIndex(null); // 수정 모드 해제
   };
 
+  const resetLightControls = () => {
+    setSceneSettings({
+      directionalLightColor: "#ffffff",
+      directionalLightIntensity: 1,
+      ambientLightColor: "#ffffff",
+      ambientLightIntensity: 1,
+      directionalLightPosX: 0,
+      directionalLightPosY: 1,
+      directionalLightPosZ: 0,
+    });
+  };
+  const resetCameraControls = () => {
+    setCameraPosition({ x: 5, y: 5, z: 5 });
+    cameraRef.current.position.x = 5;
+    cameraRef.current.position.y = 5;
+    cameraRef.current.position.z = 5;
+  }
+
+  const handleChange = (event) => {
+    const { id, value } = event.target;
+    setSceneSettings((prevSettings) => ({
+      ...prevSettings,
+      [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
+    }));
+  };
+
   const turnOff = () => {
     setEditingIndex(null);
   }
@@ -577,17 +627,13 @@ const WebEditor = () => {
     }
     const updatedObjects = [...objects];
     const objToRemove = updatedObjects[index];
-    
+
     sceneRef.current.remove(objToRemove);
     setObjects(updatedObjects.filter((_, i) => i !== index));
     setEditingIndex(null);
   };
 
   const handleDeleteAllMeshes = () => {
-    if (objects.length === 0) {
-      sweetAlertError("Error", "No Meshes");
-      return;
-    }
     objects.forEach((mesh) => {
       mesh.geometry.dispose();
       mesh.material.dispose();
@@ -605,17 +651,6 @@ const WebEditor = () => {
     setEditingIndex(null);
   };
 
-  const resetControls = () => {
-    setSceneSettings({
-      directionalLightColor: "#ffffff",
-      directionalLightIntensity: 1,
-      ambientLightColor: "#ffffff",
-      ambientLightIntensity: 1,
-      directionalLightPosX: 0,
-      directionalLightPosY: 1,
-      directionalLightPosZ: 0,
-    });
-  };
 
   const saveScene = () => {
     const scene = sceneRef.current;
@@ -663,51 +698,65 @@ const WebEditor = () => {
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
-      const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
-      if (!file) return;
-      else if (fileExtension !== 'gltf' && fileExtension !== 'glb') {
-        sweetAlertError("GLTF, GLB 가 아님","올바른 형식의 파일을 업로드 하십시오.");
-        return;
-      }
-      const url = URL.createObjectURL(file);
-      const loader = new GLTFLoader();
-      const dracoLoader = new DRACOLoader();
-      dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-      loader.setDRACOLoader(dracoLoader);
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
+    if (!file) return;
+    else if (fileExtension !== 'gltf' && fileExtension !== 'glb') {
+      sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
 
-      loader.load(url, (gltf) => {
-        if (gltf.scene) {
-          const scene = gltf.scene;
-          let meshes = [];
-          // GLTF 씬의 모든 노드를 순회
-          scene.traverse((child) => {
-            if (child.isMesh) { meshes.push(child); }
-          });
-          setUploadObjects((prev) => [...prev, ...meshes]); // 상태 업데이트
-          sceneRef.current.add(...meshes);
-        }
-        dracoLoader.dispose();
-      }, undefined, (error) => {
-        console.error('모델을 로딩하는 도중 오류 발생:', error);
-      });
-      URL.revokeObjectURL(url);
-      // 파일 선택 후 input 값을 초기화하여 동일한 파일 다시 선택 가능하게 함
-      event.target.value = ''; // 이 부분을 추가하여 input 초기화
+    loader.load(url, (gltf) => {
+      if (gltf.scene) {
+        const scene = gltf.scene;
+        let meshes = [];
+        // GLTF 씬의 모든 노드를 순회
+        scene.traverse((child) => {
+          if (child.isMesh) { meshes.push(child); }
+        });
+        setUploadObjects((prev) => [...prev, ...meshes]); // 상태 업데이트
+        sceneRef.current.add(...meshes);
+      }
+      dracoLoader.dispose();
+    }, undefined, (error) => {
+      console.error('모델을 로딩하는 도중 오류 발생:', error);
+    });
+    URL.revokeObjectURL(url);
+    // 파일 선택 후 input 값을 초기화하여 동일한 파일 다시 선택 가능하게 함
+    event.target.value = ''; // 이 부분을 추가하여 input 초기화
   };
 
   const [scaleValues, setScaleValues] = useState({}); // 각 매쉬의 크기를 저장할 상태
 
   // 매쉬 삭제
-  const handleDeleteUploadMesh = (mesh) => {
-    // setUploadObjects(uploadObjects.filter((_, i) => i !== index));
+  const handleDeleteUploadMesh = (mesh, indexToDelete) => {
     if (transformControlsRef.current.object) {
       transformControlsRef.current.detach();
     }
     else if (transformControlsRef2.current.object) {
       transformControlsRef2.current.detach();
     }
-
     setUploadObjects((prev) => prev.filter((m) => m !== mesh));
+
+    // Set에서 삭제하고, 그 이후 인덱스를 하나씩 당기는 로직
+    setSelectedIndexUploadMeshes((prevSet) => {
+      const updatedSet = new Set();
+
+      prevSet.forEach(index => {
+        if (index < indexToDelete) {
+          updatedSet.add(index); // 삭제된 인덱스보다 작은 인덱스는 그대로 유지
+        } else if (index > indexToDelete) {
+          updatedSet.add(index - 1); // 삭제된 인덱스 이후의 인덱스는 1씩 감소
+        }
+      });
+
+      return updatedSet;
+    });
+
     mesh.geometry.dispose();
     mesh.material.dispose();
     sceneRef.current.remove(mesh);
@@ -715,10 +764,6 @@ const WebEditor = () => {
 
   // 모든 매쉬 삭제
   const handleDeleteAllUploadMeshes = () => {
-    if (uploadObjects.length === 0) {
-      sweetAlertError("Error", "No Meshes");
-      return;
-    }
     uploadObjects.forEach((mesh) => {
       mesh.geometry.dispose();
       mesh.material.dispose();
@@ -730,6 +775,7 @@ const WebEditor = () => {
     else if (transformControlsRef2.current.object) {
       transformControlsRef2.current.detach();
     }
+    setSelectedIndexUploadMeshes(new Set());
     setSelectedObject(null);
     setSelectedObject2(null);
     setUploadObjects([]);
@@ -745,12 +791,55 @@ const WebEditor = () => {
     setScaleValues(updatedScaleValues); // 크기 상태 업데이트
     mesh.scale.set(size, size, size); // 매쉬 크기 반영
   };
-  
+
+  const handleSelectAll = () => {
+    if (selectedIndexUploadMeshes.size === uploadObjects.length) {
+      setSelectedIndexUploadMeshes(new Set()); // 전체 해제
+    } else {
+      setSelectedIndexUploadMeshes(new Set(uploadObjects.map((_, index) => index))); // 전체 선택
+    }
+  };
+
+  const handleCheckboxChange = (index) => {
+    const newSelectedIndexes = new Set(selectedIndexUploadMeshes);
+    if (newSelectedIndexes.has(index)) {
+      newSelectedIndexes.delete(index); // 선택 해제
+    } else {
+      newSelectedIndexes.add(index); // 선택
+    }
+    setSelectedIndexUploadMeshes(newSelectedIndexes);
+  };
+
+  const handleDeleteSelected = () => {
+    if (transformControlsRef.current.object) {
+      transformControlsRef.current.detach();
+    }
+    else if (transformControlsRef2.current.object) {
+      transformControlsRef2.current.detach();
+    }
+    // 삭제될 배열 생성
+    const objectsToRemove = uploadObjects.filter((_, index) => selectedIndexUploadMeshes.has(index));
+
+    // sceneRef.current에서 요소 제거
+    objectsToRemove.forEach((mesh) => {
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+      sceneRef.current.remove(mesh); // 요소 삭제
+    });
+
+    // 새로운 배열 생성 (삭제된 요소 제외)
+    const newUploadObjects = uploadObjects.filter((_, index) => !selectedIndexUploadMeshes.has(index));
+
+    // 상태 업데이트
+    setUploadObjects(newUploadObjects);
+    setSelectedIndexUploadMeshes(new Set()); // 선택된 인덱스 초기화
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <div style={{ position: 'relative' }}>
-        
+
           <canvas ref={canvasRef} style={{ maxWidth: '100%', display: 'block' }}></canvas>
           <div className="web-editor-inf">
             {guiTrue ? <>
@@ -761,18 +850,19 @@ const WebEditor = () => {
               {tipTrue &&
                 <div className="web-editor-tip">
                   🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br /><br />
-                  1. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{ color: "red" }}>불가</span>합니다.<br /><br />
-                  2. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
-                  3. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
-                  4. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
-                  5. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
+                  1. 카메라 조절과 빛의 조절이 가능하며, 카메라 조절 시 수동으로 숫자 입력(0 이상)도 되지만, OrbitControls 기능으로 마우스 조절도 가능합니다<br /><br />
+                  2. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{ color: "red" }}>불가</span>합니다.<br /><br />
+                  3. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
+                  4. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
+                  5. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
+                  6. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
                 </div>}
               <div className="web-editor-light">
+                <h3>Light Setup</h3>
                 <div>
                   <label>배경 색 변경 </label>
                   <input type="color" id="rendererBackgroundColor" value={sceneSettings.rendererBackgroundColor} onChange={handleChange} />
                 </div>
-                <br />
                 <div>
                   <label>Directional Light Color </label>
                   <input type="color" id="directionalLightColor" value={sceneSettings.directionalLightColor} onChange={handleChange} />
@@ -797,7 +887,12 @@ const WebEditor = () => {
                   <label>Directional Light Position Z :</label>
                   <input type="range" id="directionalLightPosZ" min="-100" max="100" step="0.1" value={sceneSettings.directionalLightPosZ} onChange={handleChange} />
                 </div>
-                <button type="button" onClick={resetControls} style={{ marginTop: '10px' }}>Reset Light</button>
+                <h3>Camera Position</h3>
+                <label>X : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.x} onChange={(e) => handleCameraPositionChange('x', parseFloat(e.target.value))} />
+                <label>Y : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.y} onChange={(e) => handleCameraPositionChange('y', parseFloat(e.target.value))} />
+                <label>Z : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.z} onChange={(e) => handleCameraPositionChange('z', parseFloat(e.target.value))} /><br />
+                <button type="button" onClick={resetLightControls} style={{ marginTop: '10px' }}>Reset Light</button>
+                <button type="button" onClick={resetCameraControls}>Reset Camera</button>
               </div>
 
               {editingIndex === null ? (
@@ -1183,11 +1278,11 @@ const WebEditor = () => {
               }
               <div className="web-editor-meshes">
                 <h3>Add Mesh : {currentMode} Mode</h3>
-                <button onClick={handleDeleteAllMeshes}>Delete All Meshes</button>
+                {objects.length > 0 && <button onClick={handleDeleteAllMeshes}>Delete All Meshes</button>}
                 {objects.map((obj, index) => (
                   <div className="web-editor-mini-div" key={index}>
                     <span>Mesh {index + 1}</span><br />
-                    <button type="button" style={{ marginTop: '5px'}} onClick={() => editShape(index)}>도형 수정</button>
+                    <button type="button" style={{ marginTop: '5px' }} onClick={() => editShape(index)}>도형 수정</button>
                     <button type="button" onClick={() => handleDeleteMeshes(index)}>❌</button>
                   </div>
                 ))}
@@ -1196,17 +1291,18 @@ const WebEditor = () => {
                 <h3>Upload Mesh : {currentMode} Mode</h3>
                 <input id="file-input" type="file" accept=".glb,.gltf" className="upload-input" onChange={handleFileUpload} />
                 <button className="upload-label" onClick={() => document.getElementById('file-input').click()}>Upload File</button>
-                <button onClick={handleDeleteAllUploadMeshes}>Delete All Meshes</button>
+                {uploadObjects.length > 0 && <>
+                  <button onClick={handleDeleteSelected}>선택 삭제</button>
+                  <button onClick={handleSelectAll}>{selectedIndexUploadMeshes.size === uploadObjects.length ? '전체 해제' : '전체 선택'}</button>
+                  <button onClick={handleDeleteAllUploadMeshes}>Delete All Meshes</button>
+                </>}
                 {uploadObjects.map((mesh, index) => (
                   <div className="web-editor-mini-div" key={index}>
                     <span>{mesh.name || `Object ${index + 1}`} </span>
-                    {mesh.isMesh && mesh.material && mesh.material.color ? (
-                        <input type="color" value={`#${mesh.material.color.getHexString()}`} onChange={(e) => handleColorChange(index, e.target.value)} />
-                    ) : (
-                      <span>Scene</span>
-                    )}<br />
+                    <input type="color" value={`#${mesh.material.color.getHexString()}`} onChange={(e) => handleColorChange(index, e.target.value)} />
+                    <input type="checkbox" className="custom-checkbox" checked={selectedIndexUploadMeshes.has(index)} onChange={() => handleCheckboxChange(index)} /><br />
                     <input type="number" min="0" step="any" value={mesh.scale.x} style={{ height: '20px', width: '250px', marginRight: '5px' }} onChange={(e) => handleSizeChange(mesh, parseFloat(e.target.value), index)} />
-                    <button onClick={() => handleDeleteUploadMesh(mesh)}>❌</button>
+                    <button onClick={() => handleDeleteUploadMesh(mesh, index)}>❌</button>
                   </div>
                 ))}
               </div>
