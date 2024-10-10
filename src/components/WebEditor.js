@@ -9,6 +9,7 @@ import { TransformControls } from 'three/examples/jsm/controls/TransformControls
 import '../css/WebEditor.css';
 
 const WebEditor = () => {
+  // Ref 영역
   const canvasRef = useRef();
   const sceneRef = useRef();
   const rendererRef = useRef();
@@ -25,28 +26,29 @@ const WebEditor = () => {
   const copiedObjectRef = useRef(null); // 복사된 객체 참조
   const copiedObjectRef2 = useRef(null); // 복사된 객체 참조
 
+  // state 영역
   const [guiTrue, setGuiTrue] = useState(true);
   const [tipTrue, setTipTrue] = useState(false);
+  const [axesHelperTrue, setAxesHelperTrue] = useState(true);
+  const [gridHelperTrue, setGridHelperTrue] = useState(true);
   const [objects, setObjects] = useState([]);
   const [uploadObjects, setUploadObjects] = useState([]);
   const [editingIndex, setEditingIndex] = useState(null); // 수정 중인 도형의 인덱스
-
   const [selectedObject, setSelectedObject] = useState([]); // 선택된 객체 참조
   const [selectedObject2, setSelectedObject2] = useState([]); // 선택된 객체 참조
   const [selectedShape, setSelectedShape] = useState('box');
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
-  const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set());
-
-  const [cameraPosition, setCameraPosition] = useState({ x: 5, y: 5, z: 5 });
+  const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set()); // Upload Meshes 체크박스 조절
 
   const [sceneSettings, setSceneSettings] = useState({ // 조명 세팅
     rendererBackgroundColor: "#ffffff",
     directionalLightColor: "#ffffff", directionalLightIntensity: 1, directionalLightPosX: 0, directionalLightPosY: 1, directionalLightPosZ: 0,
     ambientLightColor: "#ffffff", ambientLightIntensity: 1,
   });
+  const [cameraPosition, setCameraPosition] = useState({ x: 5, y: 5, z: 5 });
 
-  const [shapeSettings, setShapeSettings] = useState({ // 모양 세팅
+  const [shapeSettings, setShapeSettings] = useState({ // Add Meshes 모양 세팅
     length: 1, width: 1, height: 1, depth: 1, radius: 1, detail: 0,
     widthSegments: 1, heightSegments: 1, depthSegments: 1, radialSegments: 8, capSegments: 4, tubularSegments: 48,
     radiusTop: 1, radiusBottom: 1,
@@ -56,8 +58,7 @@ const WebEditor = () => {
     color: '#ffffff',
     posX: 0, posY: 0, posZ: 0,
   });
-
-  const [shapeModifySettings, setShapeModifySettings] = useState({ // 모양 수정 세팅
+  const [shapeModifySettings, setShapeModifySettings] = useState({ // Add Meshes 모양 수정 세팅
     length: 1, width: 1, height: 1, depth: 1, radius: 1, detail: 0,
     widthSegments: 1, heightSegments: 1, depthSegments: 1, radialSegments: 8, capSegments: 4, tubularSegments: 48,
     radiusTop: 1, radiusBottom: 1,
@@ -67,9 +68,6 @@ const WebEditor = () => {
     color: '#ffffff',
     posX: 0, posY: 0, posZ: 0,
   });
-
-  const guiTurn = () => { setGuiTrue(!guiTrue); }
-  const tipTurn = () => { setTipTrue(!tipTrue); }
 
   const sweetAlertError = (str, str2) => {
     Swal.fire({
@@ -80,17 +78,6 @@ const WebEditor = () => {
       confirmButtonText: "확인",
     }).then(() => { });
   }
-
-  const handleCameraPositionChange = (axis, value) => {
-    const newPosition = { ...cameraPosition, [axis]: value };
-    setCameraPosition(newPosition);
-
-    const camera = cameraRef.current;
-    if (camera) {
-      camera.position.set(newPosition.x, newPosition.y, newPosition.z);
-      camera.updateProjectionMatrix(); // 카메라의 프로젝션 행렬 업데이트
-    }
-  };
 
   useEffect(() => {
     const scene = new THREE.Scene();
@@ -417,6 +404,129 @@ const WebEditor = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedObject2]);
 
+
+  // GUI, Tip 저장 영역 
+  const guiTurn = () => { setGuiTrue(!guiTrue); }
+  const tipTurn = () => { setTipTrue(!tipTrue); }
+
+  const saveScene = () => {
+    const scene = sceneRef.current;
+    const gridHelper = gridHelperRef.current;
+    const axesHelper = axesHelperRef.current;
+    const transformControls = transformControlsRef.current;
+    const transformControls2 = transformControlsRef2.current;
+
+    if (gridHelperTrue) { scene.remove(gridHelperRef.current); }
+    if (axesHelperTrue) { scene.remove(axesHelperRef.current); }
+
+    // TransformControls에서 해당 객체 제거 (detach)
+    if (transformControlsRef.current.object) {
+      scene.remove(transformControlsRef.current);
+      transformControlsRef.current.detach();
+    }
+    if (transformControlsRef2.current.object) {
+      scene.remove(transformControlsRef2.current);
+      transformControlsRef2.current.detach();
+    }
+
+    const exporter = new GLTFExporter();
+    exporter.parse(
+      scene,
+      (result) => {
+        const output = JSON.stringify(result, null, 2);
+        const blob = new Blob([output], { type: 'application/json' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'model.gltf';
+        link.click();
+      },
+      { binary: false }
+    );
+    if (gridHelperTrue) { scene.add(gridHelper); }
+    if (axesHelperTrue) { scene.add(axesHelper); }        
+    scene.add(transformControls);
+    scene.add(transformControls2);
+  };
+
+  /* 조명, 카메라, Axes, Grid 설정
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  */
+  const handleChange = (event) => {
+    const { id, value } = event.target;
+    setSceneSettings((prevSettings) => ({
+      ...prevSettings,
+      [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
+    }));
+  };
+  
+  const handleCameraPositionChange = (axis, value) => {
+    const newPosition = { ...cameraPosition, [axis]: value };
+    setCameraPosition(newPosition);
+
+    const camera = cameraRef.current;
+    if (camera) {
+      camera.position.set(newPosition.x, newPosition.y, newPosition.z);
+      camera.updateProjectionMatrix(); // 카메라의 프로젝션 행렬 업데이트
+    }
+  };
+
+  const resetLightControls = () => {
+    setSceneSettings({
+      directionalLightColor: "#ffffff",
+      directionalLightIntensity: 1,
+      ambientLightColor: "#ffffff",
+      ambientLightIntensity: 1,
+      directionalLightPosX: 0,
+      directionalLightPosY: 1,
+      directionalLightPosZ: 0,
+    });
+  };
+
+  const resetCameraControls = () => {
+    setCameraPosition({ x: 5, y: 5, z: 5 });
+    cameraRef.current.position.x = 5;
+    cameraRef.current.position.y = 5;
+    cameraRef.current.position.z = 5;
+  }
+
+  const handleAxesHelper = () => {
+    const scene = sceneRef.current;
+    if (axesHelperTrue === true){
+      scene.remove(axesHelperRef.current);
+      setAxesHelperTrue(!axesHelperTrue);
+    }
+    else {
+      scene.add(axesHelperRef.current);
+      setAxesHelperTrue(!axesHelperTrue);
+    }
+  }
+  const handleGridHelper = () => {
+    const scene = sceneRef.current;
+    if (gridHelperTrue === true){
+      scene.remove(gridHelperRef.current);
+      setGridHelperTrue(!gridHelperTrue);
+    }
+    else {
+      scene.add(gridHelperRef.current);
+      setGridHelperTrue(!gridHelperTrue);
+    }
+  }
+
+  /* 매쉬 더하기, 수정 영역 
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  */
+  const turnOff = () => {
+    setEditingIndex(null);
+  }
+
   const addShape = () => {
     const { length, width, height, depth, radius, detail,
       widthSegments, heightSegments, depthSegments, capSegments, radialSegments, tubularSegments,
@@ -488,25 +598,6 @@ const WebEditor = () => {
 
     sceneRef.current.add(mesh); // group
     setObjects((prevObjects) => [...prevObjects, mesh]);
-  };
-
-  const editShape = (index) => {
-    const obj = objects[index];
-    setShapeModifySettings({
-      length: obj.userData.length, width: obj.userData.width, height: obj.userData.height, depth: obj.userData.depth, radius: obj.userData.radius, detail: obj.userData.detail,
-      widthSegments: obj.userData.widthSegments, heightSegments: obj.userData.heightSegments, depthSegments: obj.userData.depthSegments, capSegments: obj.userData.capSegments, radialSegments: obj.userData.radialSegments, tubularSegments: obj.userData.tubularSegments,
-      radiusTop: obj.userData.radiusTop, radiusBottom: obj.userData.radiusBottom,
-      thetaStart: obj.userData.thetaStart, thetaLength: obj.userData.thetaLength,
-      phiStart: obj.userData.phiStart, phiLength: obj.userData.phiLength,
-      arc: obj.userData.arc, tube: obj.userData.tube, p: obj.userData.p, q: obj.userData.q,
-      color: `#${obj.material.color.getHexString()}`,
-      posX: obj.position.x,
-      posY: obj.position.y,
-      posZ: obj.position.z,
-    });
-    setSelectedMaterial(obj.userData.material);
-    setSelectedShape(obj.userData.shape);
-    setEditingIndex(index);
   };
 
   const applyChanges = () => {
@@ -588,35 +679,24 @@ const WebEditor = () => {
     setEditingIndex(null); // 수정 모드 해제
   };
 
-  const resetLightControls = () => {
-    setSceneSettings({
-      directionalLightColor: "#ffffff",
-      directionalLightIntensity: 1,
-      ambientLightColor: "#ffffff",
-      ambientLightIntensity: 1,
-      directionalLightPosX: 0,
-      directionalLightPosY: 1,
-      directionalLightPosZ: 0,
+  const editShape = (index) => {
+    const obj = objects[index];
+    setShapeModifySettings({
+      length: obj.userData.length, width: obj.userData.width, height: obj.userData.height, depth: obj.userData.depth, radius: obj.userData.radius, detail: obj.userData.detail,
+      widthSegments: obj.userData.widthSegments, heightSegments: obj.userData.heightSegments, depthSegments: obj.userData.depthSegments, capSegments: obj.userData.capSegments, radialSegments: obj.userData.radialSegments, tubularSegments: obj.userData.tubularSegments,
+      radiusTop: obj.userData.radiusTop, radiusBottom: obj.userData.radiusBottom,
+      thetaStart: obj.userData.thetaStart, thetaLength: obj.userData.thetaLength,
+      phiStart: obj.userData.phiStart, phiLength: obj.userData.phiLength,
+      arc: obj.userData.arc, tube: obj.userData.tube, p: obj.userData.p, q: obj.userData.q,
+      color: `#${obj.material.color.getHexString()}`,
+      posX: obj.position.x,
+      posY: obj.position.y,
+      posZ: obj.position.z,
     });
+    setSelectedMaterial(obj.userData.material);
+    setSelectedShape(obj.userData.shape);
+    setEditingIndex(index);
   };
-  const resetCameraControls = () => {
-    setCameraPosition({ x: 5, y: 5, z: 5 });
-    cameraRef.current.position.x = 5;
-    cameraRef.current.position.y = 5;
-    cameraRef.current.position.z = 5;
-  }
-
-  const handleChange = (event) => {
-    const { id, value } = event.target;
-    setSceneSettings((prevSettings) => ({
-      ...prevSettings,
-      [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
-    }));
-  };
-
-  const turnOff = () => {
-    setEditingIndex(null);
-  }
 
   const handleDeleteMeshes = (index) => {
     if (transformControlsRef.current.object) {
@@ -650,52 +730,14 @@ const WebEditor = () => {
     setObjects([]);
     setEditingIndex(null);
   };
-
-
-  const saveScene = () => {
-    const scene = sceneRef.current;
-    const gridHelper = gridHelperRef.current;
-    const axesHelper = axesHelperRef.current;
-    const transformControls = transformControlsRef.current;
-    const transformControls2 = transformControlsRef2.current;
-
-    // Remove gridHelper and axesHelper
-    if (gridHelperRef.current) {
-      scene.remove(gridHelperRef.current);
-    }
-    if (axesHelperRef.current) {
-      scene.remove(axesHelperRef.current);
-    }
-    // TransformControls에서 해당 객체 제거 (detach)
-    if (transformControlsRef.current.object) {
-      scene.remove(transformControlsRef.current);
-      transformControlsRef.current.detach();
-    }
-    if (transformControlsRef2.current.object) {
-      scene.remove(transformControlsRef2.current);
-      transformControlsRef2.current.detach();
-    }
-
-    // Export the scene using GLTFExporter
-    const exporter = new GLTFExporter();
-    exporter.parse(
-      scene,
-      (result) => {
-        const output = JSON.stringify(result, null, 2);
-        const blob = new Blob([output], { type: 'application/json' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = 'model.gltf';
-        link.click();
-      },
-      { binary: false }
-    );
-    scene.add(gridHelper);
-    scene.add(axesHelper);
-    scene.add(transformControls);
-    scene.add(transformControls2);
-  };
-
+  
+  /* 업로드 영역
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+  */
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
@@ -762,7 +804,7 @@ const WebEditor = () => {
     sceneRef.current.remove(mesh);
   };
 
-  // 모든 매쉬 삭제
+  // 모든 업로드 매쉬 삭제
   const handleDeleteAllUploadMeshes = () => {
     uploadObjects.forEach((mesh) => {
       mesh.geometry.dispose();
@@ -829,8 +871,6 @@ const WebEditor = () => {
 
     // 새로운 배열 생성 (삭제된 요소 제외)
     const newUploadObjects = uploadObjects.filter((_, index) => !selectedIndexUploadMeshes.has(index));
-
-    // 상태 업데이트
     setUploadObjects(newUploadObjects);
     setSelectedIndexUploadMeshes(new Set()); // 선택된 인덱스 초기화
   };
@@ -850,12 +890,13 @@ const WebEditor = () => {
               {tipTrue &&
                 <div className="web-editor-tip">
                   🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br /><br />
-                  1. 카메라 조절과 빛의 조절이 가능하며, 카메라 조절 시 수동으로 숫자 입력(0 이상)도 되지만, OrbitControls 기능으로 마우스 조절도 가능합니다<br /><br />
-                  2. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{ color: "red" }}>불가</span>합니다.<br /><br />
-                  3. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
-                  4. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
-                  5. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
-                  6. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
+                  1. 카메라 조절과 빛의 조절이 가능하며, 카메라 조절 시 수동으로 숫자 입력(0 이상)도 되지만, OrbitControls 기능으로 마우스 조절도 가능합니다.<br /><br />
+                  2. AxesHelper, GridHelper 가 거슬린다면 끄고 켜는게 가능합니다. 직관적인 모델의 구상을 보려면 기능을 활용해보세요.<br /><br />
+                  3. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{ color: "red" }}>불가</span>합니다.<br /><br />
+                  4. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
+                  5. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
+                  6. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
+                  7. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
                 </div>}
               <div className="web-editor-light">
                 <h3>Light Setup</h3>
@@ -893,6 +934,8 @@ const WebEditor = () => {
                 <label>Z : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.z} onChange={(e) => handleCameraPositionChange('z', parseFloat(e.target.value))} /><br />
                 <button type="button" onClick={resetLightControls} style={{ marginTop: '10px' }}>Reset Light</button>
                 <button type="button" onClick={resetCameraControls}>Reset Camera</button>
+                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button>:<button onClick={handleAxesHelper}>AxesHelper ON</button>}
+                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper Off</button>:<button onClick={handleGridHelper}>GridHelper ON</button>}
               </div>
 
               {editingIndex === null ? (
