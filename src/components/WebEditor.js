@@ -443,7 +443,7 @@ const WebEditor = () => {
       { binary: false }
     );
     if (gridHelperTrue) { scene.add(gridHelper); }
-    if (axesHelperTrue) { scene.add(axesHelper); }        
+    if (axesHelperTrue) { scene.add(axesHelper); }
     scene.add(transformControls);
     scene.add(transformControls2);
   };
@@ -462,12 +462,11 @@ const WebEditor = () => {
       [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
     }));
   };
-  
+
   const handleCameraPositionChange = (axis, value) => {
+    const camera = cameraRef.current;
     const newPosition = { ...cameraPosition, [axis]: value };
     setCameraPosition(newPosition);
-
-    const camera = cameraRef.current;
     if (camera) {
       camera.position.set(newPosition.x, newPosition.y, newPosition.z);
       camera.updateProjectionMatrix(); // 카메라의 프로젝션 행렬 업데이트
@@ -476,13 +475,9 @@ const WebEditor = () => {
 
   const resetLightControls = () => {
     setSceneSettings({
-      directionalLightColor: "#ffffff",
-      directionalLightIntensity: 1,
-      ambientLightColor: "#ffffff",
-      ambientLightIntensity: 1,
-      directionalLightPosX: 0,
-      directionalLightPosY: 1,
-      directionalLightPosZ: 0,
+      directionalLightColor: "#ffffff", directionalLightIntensity: 1,
+      directionalLightPosX: 0, directionalLightPosY: 1, directionalLightPosZ: 0,
+      ambientLightColor: "#ffffff", ambientLightIntensity: 1
     });
   };
 
@@ -495,7 +490,7 @@ const WebEditor = () => {
 
   const handleAxesHelper = () => {
     const scene = sceneRef.current;
-    if (axesHelperTrue === true){
+    if (axesHelperTrue === true) {
       scene.remove(axesHelperRef.current);
       setAxesHelperTrue(!axesHelperTrue);
     }
@@ -506,7 +501,7 @@ const WebEditor = () => {
   }
   const handleGridHelper = () => {
     const scene = sceneRef.current;
-    if (gridHelperTrue === true){
+    if (gridHelperTrue === true) {
       scene.remove(gridHelperRef.current);
       setGridHelperTrue(!gridHelperTrue);
     }
@@ -523,9 +518,7 @@ const WebEditor = () => {
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   */
-  const turnOff = () => {
-    setEditingIndex(null);
-  }
+  const turnOffModfiy = () => { setEditingIndex(null); } // 수정 취소
 
   const addShape = () => {
     const { length, width, height, depth, radius, detail,
@@ -689,9 +682,7 @@ const WebEditor = () => {
       phiStart: obj.userData.phiStart, phiLength: obj.userData.phiLength,
       arc: obj.userData.arc, tube: obj.userData.tube, p: obj.userData.p, q: obj.userData.q,
       color: `#${obj.material.color.getHexString()}`,
-      posX: obj.position.x,
-      posY: obj.position.y,
-      posZ: obj.position.z,
+      posX: obj.position.x, posY: obj.position.y, posZ: obj.position.z,
     });
     setSelectedMaterial(obj.userData.material);
     setSelectedShape(obj.userData.shape);
@@ -730,7 +721,7 @@ const WebEditor = () => {
     setObjects([]);
     setEditingIndex(null);
   };
-  
+
   /* 업로드 영역
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -772,6 +763,101 @@ const WebEditor = () => {
     event.target.value = ''; // 이 부분을 추가하여 input 초기화
   };
 
+  /*
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
+    if (!file) return;
+    else if (fileExtension !== 'gltf' && fileExtension !== 'glb') {
+      sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+  
+    loader.load(url, (gltf) => {
+      if (gltf.scene) {
+        const scene = gltf.scene;
+        let nodes = [];
+  
+        // GLTF 씬의 모든 노드를 순회하며 부모-자식 관계를 유지
+        const traverseNode = (node) => {
+          let nodeData = {
+            id: node.uuid, // 고유한 ID
+            name: node.name || 'Unnamed', // 노드 이름
+            type: node.type, // 노드 타입 (Mesh, Object3D 등)
+            children: [], // 자식 노드
+            object: node, // 실제 Three.js 노드 객체
+          };
+  
+          if (node.isMesh) {
+            nodeData.isMesh = true; // 메쉬 여부
+          }
+  
+          // 자식 노드가 있는 경우, 자식 노드도 트래버스하여 추가
+          if (node.children && node.children.length > 0) {
+            node.children.forEach((child) => {
+              nodeData.children.push(traverseNode(child));
+            });
+          }
+  
+          return nodeData;
+        };
+  
+        // 최상위 노드를 트래버스하여 트리 구조를 만든다
+        scene.children.forEach((child) => {
+          nodes.push(traverseNode(child));
+        });
+  
+        // 트리 구조를 uploadObjects에 저장
+        setUploadObjects((prev) => [...prev, ...nodes]);
+  
+        // 씬에 노드들을 추가
+        sceneRef.current.add(scene);
+  
+        // 드라코 로더 dispose
+        dracoLoader.dispose();
+      }
+    }, undefined, (error) => {
+      console.error('모델을 로딩하는 도중 오류 발생:', error);
+    });
+  
+    URL.revokeObjectURL(url);
+  
+    // 파일 선택 후 input 값을 초기화하여 동일한 파일 다시 선택 가능하게 함
+    event.target.value = ''; // 이 부분을 추가하여 input 초기화
+  };
+  const [expandedNodes, setExpandedNodes] = useState(new Set()); // 확장된 노드 ID를 관리
+
+const toggleNode = (nodeId) => {
+  setExpandedNodes((prev) => {
+    const newSet = new Set(prev);
+    if (newSet.has(nodeId)) {
+      newSet.delete(nodeId); // 이미 열려있다면 닫기
+    } else {
+      newSet.add(nodeId); // 닫혀있다면 열기
+    }
+    return newSet;
+  });
+};
+
+// 트리 구조를 렌더링하는 재귀 함수
+const renderNodeTree = (node) => (
+  <div key={node.id} style={{ marginLeft: '20px' }}>
+    <div onClick={() => toggleNode(node.id)}>
+      {node.isMesh ? 'Mesh: ' : 'Node: '} {node.name}
+    </div>
+    {expandedNodes.has(node.id) && node.children.length > 0 && (
+      <div>
+        {node.children.map((child) => renderNodeTree(child))}
+      </div>
+    )}
+  </div>
+);
+  */
   const [scaleValues, setScaleValues] = useState({}); // 각 매쉬의 크기를 저장할 상태
 
   // 매쉬 삭제
@@ -934,8 +1020,8 @@ const WebEditor = () => {
                 <label>Z : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.z} onChange={(e) => handleCameraPositionChange('z', parseFloat(e.target.value))} /><br />
                 <button type="button" onClick={resetLightControls} style={{ marginTop: '10px' }}>Reset Light</button>
                 <button type="button" onClick={resetCameraControls}>Reset Camera</button>
-                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button>:<button onClick={handleAxesHelper}>AxesHelper ON</button>}
-                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper Off</button>:<button onClick={handleGridHelper}>GridHelper ON</button>}
+                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button> : <button onClick={handleAxesHelper}>AxesHelper ON</button>}
+                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper Off</button> : <button onClick={handleGridHelper}>GridHelper ON</button>}
               </div>
 
               {editingIndex === null ? (
@@ -1315,7 +1401,7 @@ const WebEditor = () => {
                     <label> Z : </label>
                     <input style={{ width: "40px" }} type="number" id="posZ" value={shapeModifySettings.posZ} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
                   </div><br />
-                  <button type="button" onClick={applyChanges}>적용</button><button onClick={turnOff}>수정 취소</button>
+                  <button type="button" onClick={applyChanges}>적용</button><button onClick={turnOffModfiy}>수정 취소</button>
                 </div>
               )
               }
@@ -1348,6 +1434,11 @@ const WebEditor = () => {
                     <button onClick={() => handleDeleteUploadMesh(mesh, index)}>❌</button>
                   </div>
                 ))}
+                {/* 트리 구조 렌더링 
+                <div>
+                  {uploadObjects.map((node) => renderNodeTree(node))}
+                </div>
+                */}
               </div>
             </> : <button type="button" onClick={guiTurn}>GUI Open</button>
             }
