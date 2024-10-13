@@ -7,6 +7,12 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import '../css/WebEditor.css';
+import { v4 as uuidv4 } from 'uuid';
+
+// 고유 UUID를 생성하는 함수
+const generateUniqueId = () => {
+  return uuidv4();
+};
 
 const WebEditor = () => {
   // Ref 영역
@@ -763,101 +769,6 @@ const WebEditor = () => {
     event.target.value = ''; // 이 부분을 추가하여 input 초기화
   };
 
-  /*
-  const handleFileUpload = (event) => {
-    const file = event.target.files[0];
-    const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
-    if (!file) return;
-    else if (fileExtension !== 'gltf' && fileExtension !== 'glb') {
-      sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    const loader = new GLTFLoader();
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(dracoLoader);
-  
-    loader.load(url, (gltf) => {
-      if (gltf.scene) {
-        const scene = gltf.scene;
-        let nodes = [];
-  
-        // GLTF 씬의 모든 노드를 순회하며 부모-자식 관계를 유지
-        const traverseNode = (node) => {
-          let nodeData = {
-            id: node.uuid, // 고유한 ID
-            name: node.name || 'Unnamed', // 노드 이름
-            type: node.type, // 노드 타입 (Mesh, Object3D 등)
-            children: [], // 자식 노드
-            object: node, // 실제 Three.js 노드 객체
-          };
-  
-          if (node.isMesh) {
-            nodeData.isMesh = true; // 메쉬 여부
-          }
-  
-          // 자식 노드가 있는 경우, 자식 노드도 트래버스하여 추가
-          if (node.children && node.children.length > 0) {
-            node.children.forEach((child) => {
-              nodeData.children.push(traverseNode(child));
-            });
-          }
-  
-          return nodeData;
-        };
-  
-        // 최상위 노드를 트래버스하여 트리 구조를 만든다
-        scene.children.forEach((child) => {
-          nodes.push(traverseNode(child));
-        });
-  
-        // 트리 구조를 uploadObjects에 저장
-        setUploadObjects((prev) => [...prev, ...nodes]);
-  
-        // 씬에 노드들을 추가
-        sceneRef.current.add(scene);
-  
-        // 드라코 로더 dispose
-        dracoLoader.dispose();
-      }
-    }, undefined, (error) => {
-      console.error('모델을 로딩하는 도중 오류 발생:', error);
-    });
-  
-    URL.revokeObjectURL(url);
-  
-    // 파일 선택 후 input 값을 초기화하여 동일한 파일 다시 선택 가능하게 함
-    event.target.value = ''; // 이 부분을 추가하여 input 초기화
-  };
-  const [expandedNodes, setExpandedNodes] = useState(new Set()); // 확장된 노드 ID를 관리
-
-const toggleNode = (nodeId) => {
-  setExpandedNodes((prev) => {
-    const newSet = new Set(prev);
-    if (newSet.has(nodeId)) {
-      newSet.delete(nodeId); // 이미 열려있다면 닫기
-    } else {
-      newSet.add(nodeId); // 닫혀있다면 열기
-    }
-    return newSet;
-  });
-};
-
-// 트리 구조를 렌더링하는 재귀 함수
-const renderNodeTree = (node) => (
-  <div key={node.id} style={{ marginLeft: '20px' }}>
-    <div onClick={() => toggleNode(node.id)}>
-      {node.isMesh ? 'Mesh: ' : 'Node: '} {node.name}
-    </div>
-    {expandedNodes.has(node.id) && node.children.length > 0 && (
-      <div>
-        {node.children.map((child) => renderNodeTree(child))}
-      </div>
-    )}
-  </div>
-);
-  */
   const [scaleValues, setScaleValues] = useState({}); // 각 매쉬의 크기를 저장할 상태
 
   // 매쉬 삭제
@@ -1434,11 +1345,6 @@ const renderNodeTree = (node) => (
                     <button onClick={() => handleDeleteUploadMesh(mesh, index)}>❌</button>
                   </div>
                 ))}
-                {/* 트리 구조 렌더링 
-                <div>
-                  {uploadObjects.map((node) => renderNodeTree(node))}
-                </div>
-                */}
               </div>
             </> : <button type="button" onClick={guiTurn}>GUI Open</button>
             }
