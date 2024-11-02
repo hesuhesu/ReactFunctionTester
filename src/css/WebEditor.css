@@ -182,6 +182,7 @@ button:active {
     border-radius: 8px;
 }
 
+
 /* 모바일용 CSS */
 @media (max-width: 480px) {
     /* 스크롤바 스타일 조정 */

@@ -6,7 +6,8 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
-import '../css/WebEditor.css';
+// import '../css/WebEditor.css';
+import '../css/WebEditor.scss';
 
 const WebEditor = () => {
   // Ref 영역
