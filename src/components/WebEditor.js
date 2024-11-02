@@ -7,12 +7,6 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 import '../css/WebEditor.css';
-import { v4 as uuidv4 } from 'uuid';
-
-// 고유 UUID를 생성하는 함수
-const generateUniqueId = () => {
-  return uuidv4();
-};
 
 const WebEditor = () => {
   // Ref 영역
@@ -449,7 +443,7 @@ const WebEditor = () => {
       { binary: false }
     );
     if (gridHelperTrue) { scene.add(gridHelper); }
-    if (axesHelperTrue) { scene.add(axesHelper); }
+    if (axesHelperTrue) { scene.add(axesHelper); }        
     scene.add(transformControls);
     scene.add(transformControls2);
   };
@@ -468,11 +462,12 @@ const WebEditor = () => {
       [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
     }));
   };
-
+  
   const handleCameraPositionChange = (axis, value) => {
-    const camera = cameraRef.current;
     const newPosition = { ...cameraPosition, [axis]: value };
     setCameraPosition(newPosition);
+
+    const camera = cameraRef.current;
     if (camera) {
       camera.position.set(newPosition.x, newPosition.y, newPosition.z);
       camera.updateProjectionMatrix(); // 카메라의 프로젝션 행렬 업데이트
@@ -481,9 +476,13 @@ const WebEditor = () => {
 
   const resetLightControls = () => {
     setSceneSettings({
-      directionalLightColor: "#ffffff", directionalLightIntensity: 1,
-      directionalLightPosX: 0, directionalLightPosY: 1, directionalLightPosZ: 0,
-      ambientLightColor: "#ffffff", ambientLightIntensity: 1
+      directionalLightColor: "#ffffff",
+      directionalLightIntensity: 1,
+      ambientLightColor: "#ffffff",
+      ambientLightIntensity: 1,
+      directionalLightPosX: 0,
+      directionalLightPosY: 1,
+      directionalLightPosZ: 0,
     });
   };
 
@@ -496,7 +495,7 @@ const WebEditor = () => {
 
   const handleAxesHelper = () => {
     const scene = sceneRef.current;
-    if (axesHelperTrue === true) {
+    if (axesHelperTrue === true){
       scene.remove(axesHelperRef.current);
       setAxesHelperTrue(!axesHelperTrue);
     }
@@ -507,7 +506,7 @@ const WebEditor = () => {
   }
   const handleGridHelper = () => {
     const scene = sceneRef.current;
-    if (gridHelperTrue === true) {
+    if (gridHelperTrue === true){
       scene.remove(gridHelperRef.current);
       setGridHelperTrue(!gridHelperTrue);
     }
@@ -524,7 +523,9 @@ const WebEditor = () => {
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   */
-  const turnOffModfiy = () => { setEditingIndex(null); } // 수정 취소
+  const turnOff = () => {
+    setEditingIndex(null);
+  }
 
   const addShape = () => {
     const { length, width, height, depth, radius, detail,
@@ -688,7 +689,9 @@ const WebEditor = () => {
       phiStart: obj.userData.phiStart, phiLength: obj.userData.phiLength,
       arc: obj.userData.arc, tube: obj.userData.tube, p: obj.userData.p, q: obj.userData.q,
       color: `#${obj.material.color.getHexString()}`,
-      posX: obj.position.x, posY: obj.position.y, posZ: obj.position.z,
+      posX: obj.position.x,
+      posY: obj.position.y,
+      posZ: obj.position.z,
     });
     setSelectedMaterial(obj.userData.material);
     setSelectedShape(obj.userData.shape);
@@ -727,7 +730,7 @@ const WebEditor = () => {
     setObjects([]);
     setEditingIndex(null);
   };
-
+  
   /* 업로드 영역
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -931,8 +934,8 @@ const WebEditor = () => {
                 <label>Z : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.z} onChange={(e) => handleCameraPositionChange('z', parseFloat(e.target.value))} /><br />
                 <button type="button" onClick={resetLightControls} style={{ marginTop: '10px' }}>Reset Light</button>
                 <button type="button" onClick={resetCameraControls}>Reset Camera</button>
-                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button> : <button onClick={handleAxesHelper}>AxesHelper ON</button>}
-                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper Off</button> : <button onClick={handleGridHelper}>GridHelper ON</button>}
+                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button>:<button onClick={handleAxesHelper}>AxesHelper ON</button>}
+                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper OFF</button>:<button onClick={handleGridHelper}>GridHelper ON</button>}
               </div>
 
               {editingIndex === null ? (
@@ -1312,7 +1315,7 @@ const WebEditor = () => {
                     <label> Z : </label>
                     <input style={{ width: "40px" }} type="number" id="posZ" value={shapeModifySettings.posZ} onChange={(e) => { setShapeModifySettings(prev => ({ ...prev, posZ: parseFloat(e.target.value) })); }} />
                   </div><br />
-                  <button type="button" onClick={applyChanges}>적용</button><button onClick={turnOffModfiy}>수정 취소</button>
+                  <button type="button" onClick={applyChanges}>적용</button><button onClick={turnOff}>수정 취소</button>
                 </div>
               )
               }
