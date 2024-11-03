@@ -2,20 +2,17 @@
 ::-webkit-scrollbar {
     width: 15px;
 }
-
 /* 스크롤바 트랙 */
 ::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 10px;
 }
-
 /* 스크롤바 핸들 */
 ::-webkit-scrollbar-thumb {
     background-color: #888;
     border-radius: 10px;
     border: 3px solid #f1f1f1;
 }
-
 /* 스크롤바 핸들 호버 */
 ::-webkit-scrollbar-thumb:hover {
     background-color: #555;
@@ -44,7 +41,6 @@ h3 {
 button {
     background: linear-gradient(135deg, #555, #777);
     border: none;
-    border-radius: 5px;
     color: white;
     padding: 10px 20px;
     margin-right: 5px;
@@ -52,8 +48,8 @@ button {
     cursor: pointer;
     transition: transform 0.4s, box-shadow 0.4s;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    border-radius: 5px;
 }
-
 button:hover {
     transform: translateY(-3px);
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.7);
@@ -63,107 +59,109 @@ button:active {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
 }
 
+/*
+%basic {
+    
+}
+*/
+
+@mixin padding-margin(
+$padding: 0px,
+$margin: 0px
+){
+    padding: $padding;
+    margin: $margin;
+}
+@mixin outline-setup(
+$box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5), 
+$text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5),
+$border-radius: 5px) {
+    box-shadow: $box-shadow;
+    text-shadow: $text-shadow;
+    border-radius: $border-radius;
+}
+
 .web-editor-inf {
+    @include outline-setup;
+    // @extend %basic;
     position: absolute;
+    padding: 10px;
     top: 10px;
     left: 10px;
     background-color: rgba(0, 0, 0, 0.7);
-    padding: 10px;
     max-height: 850px;
     max-width: 500px;
     overflow-y: auto;
     overflow-x: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-    border-radius: 8px;
-
+    
     /* 툴팁 설정 */
     .web-editor-tip {
+        @include outline-setup;
+        @include padding-margin(10px, 0 0 10px 0);
         font-weight: bold;
         font-size: 14px;
         overflow-y: auto;
         max-height: 300px;
-        margin-bottom: 10px;
-        padding: 10px;
         background-color: rgba(255, 255, 255, 0.7);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
     }
 
     /* 조명 설정 */
     .web-editor-light {
+        @include outline-setup;
+        @include padding-margin(10px, 0 0 10px 0);
         font-weight: bold;
-        padding: 10px;
-        margin-bottom: 10px;
         background-color: rgba(255, 255, 255, 0.7);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
     }
 
     /* 도형 추가 설정 */
     .web-editor-add-mesh {
+        @include outline-setup;
+        @include padding-margin(10px, 0 0 10px 0);
         font-weight: bold;
-        padding: 10px;
-        margin-bottom: 10px;
         background-color: rgba(73, 169, 61, 0.7);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
     }
 
     /* 도형 수정 설정 */
     .web-editor-modify-mesh {
+        @include outline-setup;
+        @include padding-margin(10px, 0 0 10px 0);
         font-weight: bold;
-        padding: 10px;
-        margin-bottom: 10px;
         background-color: rgba(205, 103, 24, 0.7);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
     }
 
     /* 생성 도형 목록 설정 */
     .web-editor-meshes {
+        @include outline-setup;
+        @include padding-margin(10px, 0 0 10px 0);
         font-weight: bold;
-        padding: 10px;
         background-color: rgba(255, 255, 255, 0.7);
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         max-height: 300px;
         overflow-y: auto;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
     }
     
     /* 업로드 도형 목록 설정 */
     .web-editor-upload-meshes {
+        @include outline-setup;
         padding: 10px;
+        font-weight: bold;
         background-color: rgba(229, 255, 0, 0.7);
         box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         max-height: 300px;
         overflow-y: auto;
-        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-        text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-        border-radius: 8px;
 
         .upload-input {
             display: none; /* 기본 input 숨기기 */
         }
         
         .upload-label {
+            @include outline-setup;
+            @include padding-margin(10px 20px, 0 5px 5px 0);
             background: linear-gradient(135deg, #555, #777);
             border: none;
-            border-radius: 5px;
             color: white;
-            padding: 10px 20px;
-            margin-right: 5px;
             font-size: 10px;
             cursor: pointer;
             transition: transform 0.4s ease, box-shadow 0.4s ease; /* ease 추가 */
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
         }
         .upload-label:hover {
             transform: translateY(-3px);
@@ -175,13 +173,11 @@ button:active {
         }
         
         .web-editor-mini-div {
+            @include outline-setup;
             font-weight: bold;
             padding: 10px;
-            margin-top: 5px;
+            margin-bottom: 5px;
             background-color: rgba(0, 255, 255, 0.5);
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
-            border-radius: 8px;
         }
     }
 }
