@@ -24,7 +24,7 @@ const WebEditor = () => {
   const mouseRef = useRef(new THREE.Vector2());
   const transformControlsRef = useRef(); // TransformControls 참조
   const transformControlsRef2 = useRef(); // TransformControls 참조
-  const transformControlsRef3 = useRef(null);
+  const transformControlsRef3 = useRef();
   const copiedObjectRef = useRef(null); // 복사된 객체 참조
   const copiedObjectRef2 = useRef(null); // 복사된 객체 참조
   const outlineRef = useRef(null); // 테두리 저장할 ref
@@ -44,7 +44,7 @@ const WebEditor = () => {
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
   const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set()); // Upload Meshes 체크박스 조절
 
-
+const [objectTrees, setObjectTrees] = useState([]);
   const [selectedMesh, setSelectedMesh] = useState(null);
 
 
@@ -255,7 +255,7 @@ const WebEditor = () => {
       canvas.removeEventListener('dblclick', handleMouseClick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objects, uploadObjects]);
+  }, [objects, uploadObjects, objectTrees]);
 
   // 객체 복사 기능
   const copyObject = () => {
@@ -823,12 +823,25 @@ const WebEditor = () => {
 
     loader.load(url, (gltf) => {
       if (gltf.scene) {
+        
         const scene = gltf.scene;
         let meshes = [];
         // GLTF 씬의 모든 노드를 순회
-        scene.traverse((child) => {
-          if (child.isMesh) { meshes.push(child); }
-        });
+        
+        /*
+        const children = [...gltf.scene.children]
+        for(const child of children)
+        {
+          meshes.push(child);
+        }
+        */
+
+        scene.traverse((node) => {
+          if (node.isMesh) {
+              meshes.push(node);
+          }
+      });
+       
         setUploadObjects((prev) => [...prev, ...meshes]); // 상태 업데이트
         sceneRef.current.add(...meshes);
       }
@@ -948,18 +961,18 @@ const WebEditor = () => {
   ----------------------------------------------------------------------------------------------------
   */
 
-  const [objectTrees, setObjectTrees] = useState([]);
-  
-
   const handleFileUploadNew = (event) => {
     const file = event.target.files[0];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
+    
     if (!file) return;
-    else if (fileExtension !== 'gltf' && fileExtension !== 'glb') {
+    else if (fileExtension !== 'gltf' && fileExtension !== 'glb' && fileExtension !== 'bin') {
       sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
       return;
     }
+
     const url = URL.createObjectURL(file);
+
     const loader = new GLTFLoader();
     const dracoLoader = new DRACOLoader();
     dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
@@ -993,8 +1006,8 @@ const WebEditor = () => {
     }, undefined, (error) => {
       console.error('모델을 로딩하는 도중 오류 발생:', error);
     });
+    // Blob URL 해제 (메모리 관리)
     URL.revokeObjectURL(url);
-    // 파일 선택 후 input 값을 초기화하여 동일한 파일 다시 선택 가능하게 함
     event.target.value = ''; // 이 부분을 추가하여 input 초기화
   };
 
@@ -1009,6 +1022,7 @@ const WebEditor = () => {
           {node.name}
         </strong> ({node.type})
         {node.children.length > 0 && <div>{renderTree(node.children)}</div>}
+        <button onClick={() => deleteMesh(node.ref)}>삭제</button>
       </div>
     ));
   };
@@ -1023,7 +1037,7 @@ const WebEditor = () => {
 
     // EdgeGeometry 생성 후 World Matrix 복사
     const edgeGeometry = new THREE.EdgesGeometry(mesh.geometry);
-    const outlineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const outlineMaterial = new THREE.LineBasicMaterial({ color: 0xfefd48 });
     const outline = new THREE.LineSegments(edgeGeometry, outlineMaterial);
 
     // 월드 매트릭스 적용
@@ -1042,9 +1056,45 @@ const WebEditor = () => {
     createOutline(mesh); // 매쉬 선택 시 테두리 추가
   };
 
-  useEffect(() => {
-    
-  },[sceneRef])
+  const checkButton = () => {
+    console.log(objectTrees);
+  }
+
+  // 특정 매쉬 삭제 함수
+  const deleteMesh = (mesh) => {
+    sceneRef.current.remove(mesh);
+    mesh.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry.dispose();
+        child.material.dispose();
+      }
+    });
+    setObjectTrees((prevTrees) =>
+      prevTrees.filter((item) => item.tree.ref !== mesh)
+    );
+    setSelectedMesh(null);
+  };
+
+  const clearAllObjects = () => {
+    objectTrees.forEach((item) => {
+      sceneRef.current.remove(item.tree.ref);
+      item.tree.ref.traverse((child) => {
+        if (child.isMesh) {
+          child.geometry.dispose();
+          child.material.dispose();
+        }
+      });
+    });
+    setObjectTrees([]);
+    setSelectedMesh(null);
+    if (transformControlsRef3.current.object) { transformControlsRef3.current.detach(); } // 추가
+    if (outlineRef.current) {
+      sceneRef.current.remove(outlineRef.current);
+      outlineRef.current.geometry.dispose();
+      outlineRef.current.material.dispose();
+    }
+    outlineRef.current = null;
+  };
 
   return (
     <div>
@@ -1523,9 +1573,17 @@ const WebEditor = () => {
 
 
               <div className="web-editor-upload-meshes">
-                <h3>New Upload Mesh : {currentMode} Mode</h3>
+                <h3>Test Mode : {currentMode} Mode</h3>
                 <input id="file-input2" type="file" multiple accept=".glb,.gltf" className="upload-input" onChange={handleFileUploadNew} />
                 <button className="upload-label" onClick={() => document.getElementById('file-input2').click()}>Upload File</button>
+                {objectTrees.length > 0 && <>
+                  {/*
+                  <button onClick={handleDeleteSelected}>선택 삭제</button>
+                  <button onClick={handleSelectAll}>{selectedIndexUploadMeshes.size === uploadObjects.length ? '전체 해제' : '전체 선택'}</button>
+                  */}
+                  <button onClick={clearAllObjects}>Delete All Meshes</button>
+                  <button onClick={checkButton}>Check Button</button>
+                </>}
                 <div>
                   {objectTrees.map((item, index) => (
                     <div key={index}>
