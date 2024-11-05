@@ -24,8 +24,10 @@ const WebEditor = () => {
   const mouseRef = useRef(new THREE.Vector2());
   const transformControlsRef = useRef(); // TransformControls 참조
   const transformControlsRef2 = useRef(); // TransformControls 참조
+  const transformControlsRef3 = useRef(null);
   const copiedObjectRef = useRef(null); // 복사된 객체 참조
   const copiedObjectRef2 = useRef(null); // 복사된 객체 참조
+  const outlineRef = useRef(null); // 테두리 저장할 ref
 
   // state 영역
   const [guiTrue, setGuiTrue] = useState(true);
@@ -41,6 +43,10 @@ const WebEditor = () => {
   const [currentMode, setCurrentMode] = useState('translate'); // 현재 TransformControls 모드 상태
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
   const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set()); // Upload Meshes 체크박스 조절
+
+
+  const [selectedMesh, setSelectedMesh] = useState(null);
+
 
   const [sceneSettings, setSceneSettings] = useState({ // 조명 세팅
     rendererBackgroundColor: "#ffffff",
@@ -120,12 +126,20 @@ const WebEditor = () => {
     transformControlsRef2.current = transformControls2;
     scene.add(transformControls2);
 
+    const transformControls3 = new TransformControls(camera, renderer.domElement);
+    transformControlsRef3.current = transformControls3;
+    scene.add(transformControls3);
+
     // TransformControls 이벤트 리스너: 드래그 중에 OrbitControls 비활성화
     transformControls.addEventListener('dragging-changed', function (event) {
       controls.enabled = !event.value;
     });
     // TransformControls 이벤트 리스너: 드래그 중에 OrbitControls 비활성화
     transformControls2.addEventListener('dragging-changed', function (event) {
+      controls.enabled = !event.value;
+    });
+    // TransformControls 이벤트 리스너: 드래그 중에 OrbitControls 비활성화
+    transformControls3.addEventListener('dragging-changed', function (event) {
       controls.enabled = !event.value;
     });
 
@@ -186,6 +200,7 @@ const WebEditor = () => {
       raycasterRef.current.setFromCamera(mouseRef.current, cameraRef.current);
 
       // objects와 uploadObjects 둘 다 탐색
+
       const intersectsObjects = raycasterRef.current.intersectObjects(objects);
       const intersectsUploadObjects = raycasterRef.current.intersectObjects(uploadObjects);
 
@@ -217,19 +232,27 @@ const WebEditor = () => {
           setSelectedObject2(intersectedObject);
           setSelectedObject(null);
         }
+        
       } else {
         // 빈 공간 클릭 시 TransformControls 해제
         if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
         if (transformControlsRef2.current.object) { transformControlsRef2.current.detach(); }
+        if (transformControlsRef3.current.object) { transformControlsRef3.current.detach(); } // 추가
+        if (outlineRef.current) {
+          sceneRef.current.remove(outlineRef.current);
+          outlineRef.current.geometry.dispose();
+          outlineRef.current.material.dispose();
+        }
         setSelectedObject(null);
         setSelectedObject2(null);
+        setSelectedMesh(null); // 추가
         setEditingIndex(null);
       }
     };
 
-    canvas.addEventListener('click', handleMouseClick);
+    canvas.addEventListener('dblclick', handleMouseClick);
     return () => {
-      canvas.removeEventListener('click', handleMouseClick);
+      canvas.removeEventListener('dblclick', handleMouseClick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [objects, uploadObjects]);
@@ -382,6 +405,29 @@ const WebEditor = () => {
       }
     }
   };
+  const handleKeyDown3 = (event) => {
+    /*
+    if (event.ctrlKey && event.key === 'c') { copyObject3(); }
+    else if (event.ctrlKey && event.key === 'v') { pasteObject3(); }
+    else if (event.key === 'Delete') { deleteObject3(); }
+    */
+      switch (event.key) {
+        case 'a':
+          setCurrentMode('Translate');
+          transformControlsRef3.current.setMode('translate');
+          break;
+        case 's':
+          setCurrentMode('Rotate');
+          transformControlsRef3.current.setMode('rotate');
+          break;
+        case 'd':
+          setCurrentMode('Scale');
+          transformControlsRef3.current.setMode('scale');
+          break;
+        default:
+          break;
+      }
+  };
 
   // 키보드 이벤트 리스너 추가
   useEffect(() => {
@@ -404,7 +450,16 @@ const WebEditor = () => {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedObject2]);
+  useEffect(() => {
+    const handleKeyDownWrapper3 = (event) => handleKeyDown3(event);
 
+    window.addEventListener('keydown', handleKeyDownWrapper3);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDownWrapper3);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMesh]);
 
   // GUI, Tip 저장 영역 
   const guiTurn = () => { setGuiTrue(!guiTrue); }
@@ -414,11 +469,17 @@ const WebEditor = () => {
     const scene = sceneRef.current;
     const gridHelper = gridHelperRef.current;
     const axesHelper = axesHelperRef.current;
+    const ambientLight= ambientLightRef.current;
+    const directionalLight = directionalLightRef.current;
     const transformControls = transformControlsRef.current;
     const transformControls2 = transformControlsRef2.current;
+    const transformControls3 = transformControlsRef3.current;
 
     if (gridHelperTrue) { scene.remove(gridHelperRef.current); }
     if (axesHelperTrue) { scene.remove(axesHelperRef.current); }
+    if (outlineRef.current) { scene.remove(outlineRef.current); }
+    scene.remove(ambientLightRef.current);
+    scene.remove(directionalLightRef.current);
 
     // TransformControls에서 해당 객체 제거 (detach)
     if (transformControlsRef.current.object) {
@@ -428,6 +489,10 @@ const WebEditor = () => {
     if (transformControlsRef2.current.object) {
       scene.remove(transformControlsRef2.current);
       transformControlsRef2.current.detach();
+    }
+    if (transformControlsRef3.current.object) {
+      scene.remove(transformControlsRef3.current);
+      transformControlsRef3.current.detach();
     }
 
     const exporter = new GLTFExporter();
@@ -444,9 +509,12 @@ const WebEditor = () => {
       { binary: false }
     );
     if (gridHelperTrue) { scene.add(gridHelper); }
-    if (axesHelperTrue) { scene.add(axesHelper); }        
+    if (axesHelperTrue) { scene.add(axesHelper); }
+    scene.add(ambientLight);
+    scene.add(directionalLight);
     scene.add(transformControls);
     scene.add(transformControls2);
+    scene.add(transformControls3);
   };
 
   /* 조명, 카메라, Axes, Grid 설정
@@ -463,7 +531,7 @@ const WebEditor = () => {
       [id]: id.includes('Intensity') || id.includes('Pos') ? parseFloat(value) : value,
     }));
   };
-  
+
   const handleCameraPositionChange = (axis, value) => {
     const newPosition = { ...cameraPosition, [axis]: value };
     setCameraPosition(newPosition);
@@ -496,7 +564,7 @@ const WebEditor = () => {
 
   const handleAxesHelper = () => {
     const scene = sceneRef.current;
-    if (axesHelperTrue === true){
+    if (axesHelperTrue === true) {
       scene.remove(axesHelperRef.current);
       setAxesHelperTrue(!axesHelperTrue);
     }
@@ -507,7 +575,7 @@ const WebEditor = () => {
   }
   const handleGridHelper = () => {
     const scene = sceneRef.current;
-    if (gridHelperTrue === true){
+    if (gridHelperTrue === true) {
       scene.remove(gridHelperRef.current);
       setGridHelperTrue(!gridHelperTrue);
     }
@@ -731,7 +799,7 @@ const WebEditor = () => {
     setObjects([]);
     setEditingIndex(null);
   };
-  
+
   /* 업로드 영역
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
   @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -876,6 +944,108 @@ const WebEditor = () => {
     setSelectedIndexUploadMeshes(new Set()); // 선택된 인덱스 초기화
   };
 
+  /*
+  ----------------------------------------------------------------------------------------------------
+  */
+
+  const [objectTrees, setObjectTrees] = useState([]);
+  
+
+  const handleFileUploadNew = (event) => {
+    const file = event.target.files[0];
+    const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
+    if (!file) return;
+    else if (fileExtension !== 'gltf' && fileExtension !== 'glb') {
+      sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const loader = new GLTFLoader();
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+    loader.setDRACOLoader(dracoLoader);
+
+    loader.load(url, (gltf) => {
+      if (gltf.scene) {
+        const scene = gltf.scene;
+        sceneRef.current.add(scene);
+
+        // 모델을 트리 구조로 변환
+        const buildTreeStructure = (object) => {
+          if (object.isLight) return;
+          return {
+            name: object.name,
+            type: object.type,
+            ref: object, // 매쉬 참조 저장
+            children: object.children.map(buildTreeStructure),
+          };
+        };
+
+        const treeStructure = buildTreeStructure(scene);
+
+        // 파일 이름과 트리 구조를 함께 저장
+        setObjectTrees((prevTrees) => [
+          ...prevTrees,
+          { filename: file.name, tree: treeStructure }
+        ]);
+      }
+      dracoLoader.dispose();
+    }, undefined, (error) => {
+      console.error('모델을 로딩하는 도중 오류 발생:', error);
+    });
+    URL.revokeObjectURL(url);
+    // 파일 선택 후 input 값을 초기화하여 동일한 파일 다시 선택 가능하게 함
+    event.target.value = ''; // 이 부분을 추가하여 input 초기화
+  };
+
+  // 트리 구조 렌더링 함수
+  const renderTree = (nodes) => {
+    return nodes.map((node, index) => (
+      <div key={index} style={{ marginLeft: '20px' }}>
+        <strong
+          style={{ cursor: 'pointer', color: selectedMesh === node.ref ? 'blue' : 'black' }}
+          onClick={() => handleMeshClick(node.ref)}
+        >
+          {node.name}
+        </strong> ({node.type})
+        {node.children.length > 0 && <div>{renderTree(node.children)}</div>}
+      </div>
+    ));
+  };
+
+  // 테두리 생성 함수
+  const createOutline = (mesh) => {
+    if (outlineRef.current) {
+      sceneRef.current.remove(outlineRef.current);
+      outlineRef.current.geometry.dispose();
+      outlineRef.current.material.dispose();
+    }
+
+    // EdgeGeometry 생성 후 World Matrix 복사
+    const edgeGeometry = new THREE.EdgesGeometry(mesh.geometry);
+    const outlineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+    const outline = new THREE.LineSegments(edgeGeometry, outlineMaterial);
+
+    // 월드 매트릭스 적용
+    outline.applyMatrix4(mesh.matrixWorld);
+    outlineRef.current = outline;
+    sceneRef.current.add(outline);
+  };
+
+  // 매쉬 선택 핸들러
+  const handleMeshClick = (mesh) => {
+    setSelectedMesh(mesh);
+
+    if (transformControlsRef3.current) {
+      transformControlsRef3.current.attach(mesh);
+    }
+    createOutline(mesh); // 매쉬 선택 시 테두리 추가
+  };
+
+  useEffect(() => {
+    
+  },[sceneRef])
+
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -935,8 +1105,8 @@ const WebEditor = () => {
                 <label>Z : </label><input type="number" step="0.1" style={{ width: '50px' }} value={cameraPosition.z} onChange={(e) => handleCameraPositionChange('z', parseFloat(e.target.value))} /><br />
                 <button type="button" onClick={resetLightControls} style={{ marginTop: '10px' }}>Reset Light</button>
                 <button type="button" onClick={resetCameraControls}>Reset Camera</button>
-                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button>:<button onClick={handleAxesHelper}>AxesHelper ON</button>}
-                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper OFF</button>:<button onClick={handleGridHelper}>GridHelper ON</button>}
+                {axesHelperTrue ? <button onClick={handleAxesHelper}>AxesHelper OFF</button> : <button onClick={handleAxesHelper}>AxesHelper ON</button>}
+                {gridHelperTrue ? <button onClick={handleGridHelper}>GridHelper OFF</button> : <button onClick={handleGridHelper}>GridHelper ON</button>}
               </div>
 
               {editingIndex === null ? (
@@ -1350,6 +1520,24 @@ const WebEditor = () => {
                   </div>
                 ))}
               </div>
+
+
+              <div className="web-editor-upload-meshes">
+                <h3>New Upload Mesh : {currentMode} Mode</h3>
+                <input id="file-input2" type="file" multiple accept=".glb,.gltf" className="upload-input" onChange={handleFileUploadNew} />
+                <button className="upload-label" onClick={() => document.getElementById('file-input2').click()}>Upload File</button>
+                <div>
+                  {objectTrees.map((item, index) => (
+                    <div key={index}>
+                      <h3>모델 {index + 1}: {item.filename}</h3>
+                      {renderTree([item.tree])}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+
+
             </> : <button type="button" onClick={guiTurn}>GUI Open</button>
             }
           </div>
