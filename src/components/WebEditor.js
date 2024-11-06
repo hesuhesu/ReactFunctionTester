@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import * as THREE from 'three';
 import Swal from "sweetalert2";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls";
@@ -44,9 +45,10 @@ const WebEditor = () => {
   const [selectedMaterial, setSelectedMaterial] = useState('standard'); // 재질 선택
   const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set()); // Upload Meshes 체크박스 조절
 
-const [objectTrees, setObjectTrees] = useState([]);
-  const [selectedMesh, setSelectedMesh] = useState(null);
+  const navigate = useNavigate();
 
+  const [objectTrees, setObjectTrees] = useState([]);
+  const [selectedMesh, setSelectedMesh] = useState(null);
 
   const [sceneSettings, setSceneSettings] = useState({ // 조명 세팅
     rendererBackgroundColor: "#ffffff",
@@ -232,7 +234,7 @@ const [objectTrees, setObjectTrees] = useState([]);
           setSelectedObject2(intersectedObject);
           setSelectedObject(null);
         }
-        
+
       } else {
         // 빈 공간 클릭 시 TransformControls 해제
         if (transformControlsRef.current.object) { transformControlsRef.current.detach(); }
@@ -411,22 +413,22 @@ const [objectTrees, setObjectTrees] = useState([]);
     else if (event.ctrlKey && event.key === 'v') { pasteObject3(); }
     else if (event.key === 'Delete') { deleteObject3(); }
     */
-      switch (event.key) {
-        case 'a':
-          setCurrentMode('Translate');
-          transformControlsRef3.current.setMode('translate');
-          break;
-        case 's':
-          setCurrentMode('Rotate');
-          transformControlsRef3.current.setMode('rotate');
-          break;
-        case 'd':
-          setCurrentMode('Scale');
-          transformControlsRef3.current.setMode('scale');
-          break;
-        default:
-          break;
-      }
+    switch (event.key) {
+      case 'a':
+        setCurrentMode('Translate');
+        transformControlsRef3.current.setMode('translate');
+        break;
+      case 's':
+        setCurrentMode('Rotate');
+        transformControlsRef3.current.setMode('rotate');
+        break;
+      case 'd':
+        setCurrentMode('Scale');
+        transformControlsRef3.current.setMode('scale');
+        break;
+      default:
+        break;
+    }
   };
 
   // 키보드 이벤트 리스너 추가
@@ -469,7 +471,7 @@ const [objectTrees, setObjectTrees] = useState([]);
     const scene = sceneRef.current;
     const gridHelper = gridHelperRef.current;
     const axesHelper = axesHelperRef.current;
-    const ambientLight= ambientLightRef.current;
+    const ambientLight = ambientLightRef.current;
     const directionalLight = directionalLightRef.current;
     const transformControls = transformControlsRef.current;
     const transformControls2 = transformControlsRef2.current;
@@ -823,11 +825,11 @@ const [objectTrees, setObjectTrees] = useState([]);
 
     loader.load(url, (gltf) => {
       if (gltf.scene) {
-        
+
         const scene = gltf.scene;
         let meshes = [];
         // GLTF 씬의 모든 노드를 순회
-        
+
         /*
         const children = [...gltf.scene.children]
         for(const child of children)
@@ -838,10 +840,10 @@ const [objectTrees, setObjectTrees] = useState([]);
 
         scene.traverse((node) => {
           if (node.isMesh) {
-              meshes.push(node);
+            meshes.push(node);
           }
-      });
-       
+        });
+
         setUploadObjects((prev) => [...prev, ...meshes]); // 상태 업데이트
         sceneRef.current.add(...meshes);
       }
@@ -964,7 +966,7 @@ const [objectTrees, setObjectTrees] = useState([]);
   const handleFileUploadNew = (event) => {
     const file = event.target.files[0];
     const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
-    
+
     if (!file) return;
     else if (fileExtension !== 'gltf' && fileExtension !== 'glb' && fileExtension !== 'bin') {
       sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
@@ -1096,6 +1098,22 @@ const [objectTrees, setObjectTrees] = useState([]);
     outlineRef.current = null;
   };
 
+  const handleReview = () => {
+    Swal.fire({
+      title: "리뷰 작성",
+      text: "리뷰 남기러 가실래요?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "네!",
+      cancelButtonText: "아니요.."
+    }).then((result) => {
+      if (result.isConfirmed) {
+        navigate("/review");        
+      }
+    });
+  }
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -1108,6 +1126,7 @@ const [objectTrees, setObjectTrees] = useState([]);
               <button type="button" onClick={tipTurn}>User Tip</button>
               <button type="button" onClick={saveScene} >Scene Save</button>
               <button type="button" onClick={() => window.location.href = "/"}>Cache All Clear</button>
+              <button type="button" onClick={handleReview}>Review</button>
               {tipTrue &&
                 <div className="web-editor-tip">
                   🚀 3D 모델을 생성, 업로드, 다운로드 가능한 Basic 한 에디터 입니다. <br /><br />
