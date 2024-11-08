@@ -1,7 +1,7 @@
 import React from 'react';
 import {BrowserRouter, Routes, Route} from "react-router-dom";
-import WebEditor from "./components/WebEditor";
-import Review from "./components/Review";
+import WebEditor from "./routes/WebEditor";
+import Review from "./routes/Review";
 
 function App() {
 
