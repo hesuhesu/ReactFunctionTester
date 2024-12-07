@@ -7,6 +7,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import styled from 'styled-components';
 // import '../css/WebEditor.css';
 import '../css/WebEditor.scss';
 
@@ -46,8 +47,6 @@ const WebEditor = () => {
   const [selectedIndexUploadMeshes, setSelectedIndexUploadMeshes] = useState(new Set()); // Upload Meshes 체크박스 조절
 
   const navigate = useNavigate();
-
-  const [objectTrees, setObjectTrees] = useState([]);
   const [selectedMesh, setSelectedMesh] = useState(null);
 
   const [sceneSettings, setSceneSettings] = useState({ // 조명 세팅
@@ -252,12 +251,12 @@ const WebEditor = () => {
       }
     };
 
-    canvas.addEventListener('dblclick', handleMouseClick);
+    canvas.addEventListener('click', handleMouseClick);
     return () => {
-      canvas.removeEventListener('dblclick', handleMouseClick);
+      canvas.removeEventListener('click', handleMouseClick);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objects, uploadObjects, objectTrees]);
+  }, [objects, uploadObjects]);
 
   // 객체 복사 기능
   const copyObject = () => {
@@ -828,24 +827,14 @@ const WebEditor = () => {
 
         const scene = gltf.scene;
         let meshes = [];
-        // GLTF 씬의 모든 노드를 순회
-
-        /*
-        const children = [...gltf.scene.children]
-        for(const child of children)
-        {
-          meshes.push(child);
-        }
-        */
 
         scene.traverse((node) => {
-          if (node.isMesh) {
+          if(node.isMesh){
             meshes.push(node);
           }
-        });
-
-        setUploadObjects((prev) => [...prev, ...meshes]); // 상태 업데이트
-        sceneRef.current.add(...meshes);
+        })
+        setUploadObjects((prev) => [...prev, ...meshes]);
+        sceneRef.current.add(meshes);
       }
       dracoLoader.dispose();
     }, undefined, (error) => {
@@ -959,145 +948,6 @@ const WebEditor = () => {
     setSelectedIndexUploadMeshes(new Set()); // 선택된 인덱스 초기화
   };
 
-  /*
-  ----------------------------------------------------------------------------------------------------
-  */
-
-  const handleFileUploadNew = (event) => {
-    const file = event.target.files[0];
-    const fileExtension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase(); // 마지막 점 이후의 문자열 추출
-
-    if (!file) return;
-    else if (fileExtension !== 'gltf' && fileExtension !== 'glb' && fileExtension !== 'bin') {
-      sweetAlertError("GLTF, GLB 가 아님", "올바른 형식의 파일을 업로드 하십시오.");
-      return;
-    }
-
-    const url = URL.createObjectURL(file);
-
-    const loader = new GLTFLoader();
-    const dracoLoader = new DRACOLoader();
-    dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
-    loader.setDRACOLoader(dracoLoader);
-
-    loader.load(url, (gltf) => {
-      if (gltf.scene) {
-        const scene = gltf.scene;
-        sceneRef.current.add(scene);
-
-        // 모델을 트리 구조로 변환
-        const buildTreeStructure = (object) => {
-          if (object.isLight) return;
-          return {
-            name: object.name,
-            type: object.type,
-            ref: object, // 매쉬 참조 저장
-            children: object.children.map(buildTreeStructure),
-          };
-        };
-
-        const treeStructure = buildTreeStructure(scene);
-
-        // 파일 이름과 트리 구조를 함께 저장
-        setObjectTrees((prevTrees) => [
-          ...prevTrees,
-          { filename: file.name, tree: treeStructure }
-        ]);
-      }
-      dracoLoader.dispose();
-    }, undefined, (error) => {
-      console.error('모델을 로딩하는 도중 오류 발생:', error);
-    });
-    // Blob URL 해제 (메모리 관리)
-    URL.revokeObjectURL(url);
-    event.target.value = ''; // 이 부분을 추가하여 input 초기화
-  };
-
-  // 트리 구조 렌더링 함수
-  const renderTree = (nodes) => {
-    return nodes.map((node, index) => (
-      <div key={index} style={{ marginLeft: '20px' }}>
-        <strong
-          style={{ cursor: 'pointer', color: selectedMesh === node.ref ? 'blue' : 'black' }}
-          onClick={() => handleMeshClick(node.ref)}
-        >
-          {node.name}
-        </strong> ({node.type})
-        {node.children.length > 0 && <div>{renderTree(node.children)}</div>}
-        <button onClick={() => deleteMesh(node.ref)}>삭제</button>
-      </div>
-    ));
-  };
-
-  // 테두리 생성 함수
-  const createOutline = (mesh) => {
-    if (outlineRef.current) {
-      sceneRef.current.remove(outlineRef.current);
-      outlineRef.current.geometry.dispose();
-      outlineRef.current.material.dispose();
-    }
-
-    // EdgeGeometry 생성 후 World Matrix 복사
-    const edgeGeometry = new THREE.EdgesGeometry(mesh.geometry);
-    const outlineMaterial = new THREE.LineBasicMaterial({ color: 0xfefd48 });
-    const outline = new THREE.LineSegments(edgeGeometry, outlineMaterial);
-
-    // 월드 매트릭스 적용
-    outline.applyMatrix4(mesh.matrixWorld);
-    outlineRef.current = outline;
-    sceneRef.current.add(outline);
-  };
-
-  // 매쉬 선택 핸들러
-  const handleMeshClick = (mesh) => {
-    setSelectedMesh(mesh);
-
-    if (transformControlsRef3.current) {
-      transformControlsRef3.current.attach(mesh);
-    }
-    createOutline(mesh); // 매쉬 선택 시 테두리 추가
-  };
-
-  const checkButton = () => {
-    console.log(objectTrees);
-  }
-
-  // 특정 매쉬 삭제 함수
-  const deleteMesh = (mesh) => {
-    sceneRef.current.remove(mesh);
-    mesh.traverse((child) => {
-      if (child.isMesh) {
-        child.geometry.dispose();
-        child.material.dispose();
-      }
-    });
-    setObjectTrees((prevTrees) =>
-      prevTrees.filter((item) => item.tree.ref !== mesh)
-    );
-    setSelectedMesh(null);
-  };
-
-  const clearAllObjects = () => {
-    objectTrees.forEach((item) => {
-      sceneRef.current.remove(item.tree.ref);
-      item.tree.ref.traverse((child) => {
-        if (child.isMesh) {
-          child.geometry.dispose();
-          child.material.dispose();
-        }
-      });
-    });
-    setObjectTrees([]);
-    setSelectedMesh(null);
-    if (transformControlsRef3.current.object) { transformControlsRef3.current.detach(); } // 추가
-    if (outlineRef.current) {
-      sceneRef.current.remove(outlineRef.current);
-      outlineRef.current.geometry.dispose();
-      outlineRef.current.material.dispose();
-    }
-    outlineRef.current = null;
-  };
-
   const handleReview = () => {
     Swal.fire({
       title: "리뷰 작성",
@@ -1115,11 +965,8 @@ const WebEditor = () => {
     });
   }
   return (
-    <div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <div style={{ position: 'relative' }}>
-
-          <canvas ref={canvasRef} style={{ maxWidth: '100%', display: 'block' }}></canvas>
+      <WebEditorContainer>
+          <CanvasContainer ref={canvasRef}></CanvasContainer>
           <div className="web-editor-inf">
             {guiTrue ? <>
               <button type="button" style={{ marginBottom: '10px' }} onClick={guiTurn}>GUI Close</button>
@@ -1133,7 +980,7 @@ const WebEditor = () => {
                   1. 카메라 조절과 빛의 조절이 가능하며, 카메라 조절 시 수동으로 숫자 입력(0 이상)도 되지만, OrbitControls 기능으로 마우스 조절도 가능합니다.<br /><br />
                   2. AxesHelper, GridHelper 가 거슬린다면 끄고 켜는게 가능합니다. 직관적인 모델의 구상을 보려면 기능을 활용해보세요.<br /><br />
                   3. 생성한 모델은 속성값과 재질의 변경, 색상 변경 등의 기능이 존재하며 고유한 Shape 속성 변경은 <span style={{ color: "red" }}>불가</span>합니다.<br /><br />
-                  4. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재할 수 있습니다.<br /><br />
+                  4. 모델을 생성하려 하지만 생성되지 않는 경우 Segement 가 생성 최소 수준을 벗어나거나, 길이가 0 인 경우 등 다양한 요인이 존재합니다.<br /><br />
                   5. 생성된 모델은 마우스로 쉽게 조작이 가능합니다. 크기 확대축소, 모델 위치 변경, 모델의 회전, 삭제 등 기능이 존재하며 a,s,d,del 키를 누르게되면 모드가 변경됩니다.<br /><br />
                   6. 모델을 선택한 이후 ctrl + c, ctrl + v 가능합니다. 단 1회성 복사 붙여넣기 이므로 원하는 객체를 다음 기회에 선택 해야합니다.<br /><br />
                   7. 도형을 업로드 가능합니다. 해당 모델을 잘 컨트롤하여 본 페이지에서 적용되는 생성 모델과 조화를 이뤄보세요!
@@ -1590,38 +1437,24 @@ const WebEditor = () => {
                 ))}
               </div>
 
-
-              <div className="web-editor-upload-meshes">
-                <h3>Test Mode : {currentMode} Mode</h3>
-                <input id="file-input2" type="file" multiple accept=".glb,.gltf" className="upload-input" onChange={handleFileUploadNew} />
-                <button className="upload-label" onClick={() => document.getElementById('file-input2').click()}>Upload File</button>
-                {objectTrees.length > 0 && <>
-                  {/*
-                  <button onClick={handleDeleteSelected}>선택 삭제</button>
-                  <button onClick={handleSelectAll}>{selectedIndexUploadMeshes.size === uploadObjects.length ? '전체 해제' : '전체 선택'}</button>
-                  */}
-                  <button onClick={clearAllObjects}>Delete All Meshes</button>
-                  <button onClick={checkButton}>Check Button</button>
-                </>}
-                <div>
-                  {objectTrees.map((item, index) => (
-                    <div key={index}>
-                      <h3>모델 {index + 1}: {item.filename}</h3>
-                      {renderTree([item.tree])}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-
-
             </> : <button type="button" onClick={guiTurn}>GUI Open</button>
             }
           </div>
-        </div>
-      </div>
-    </div>
+        </WebEditorContainer>
   );
 };
 
 export default WebEditor;
+
+const WebEditorContainer = styled.div`
+  display: 'flex';
+  flex-direction: 'column';
+  align-items: 'center'; 
+  position: 'relative';
+`;
+
+const CanvasContainer = styled.canvas`
+  height : 100vh;
+  width: 100vh;
+  display: 'block';
+`;

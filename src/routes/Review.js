@@ -13,21 +13,23 @@ import '../css/Review.scss';
 
 const ITEMS_PER_PAGE = 10; // 페이지당 항목 수
 
-const ReviewDiv = styled.div`
+const regular = `
   display: flex;
   flex-direction: column;
 `
 
+const ReviewDiv = styled.div`
+  ${regular}
+`
+
 const BoardDiv = styled.div`
-  display: flex;
-  flex-direction: column;
+${regular}
   align-items: center;
   height: 75vh;
 `
 
 const WriteDiv = styled.div`
-  display: flex;
-  flex-direction: column;
+${regular}
   align-items: center;
   height: 20vh;
 `
@@ -73,7 +75,7 @@ const Review = () => {
 
   const handleWriteReview = () => {
     axios.post(`${HOST}:${PORT}/review/write`, {
-      title: writeData.title,
+      title: "[사용자]" + writeData.title,
       content: writeData.content,
     }).then((res) => {
       setWriteData((prevState) => ({ ...prevState, title: '' }));
@@ -95,7 +97,7 @@ const Review = () => {
         <h1 className="Board-h1">Board</h1>
         {data.length > 0 ? (
           <>
-            <CommonTable headersName={['제목[클릭]', '내용', '작성 시기']}>
+            <CommonTable headersName={['[이용자 구분]제목', '내용', '작성 시기']}>
               {displayedData.map((item) => (
                 <CommonTableRow key={item._id}>
                   <CommonTableColumn>{item.title}</CommonTableColumn>
